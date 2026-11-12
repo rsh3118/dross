@@ -1,0 +1,10 @@
+{
+  "crons": [
+    { "path": "/api/cron/rollover", "schedule": "5 * * * *" },
+    { "path": "/api/cron/research", "schedule": "15 * * * *" },
+    { "path": "/api/cron/housekeeping", "schedule": "0 3 * * *" },
+    { "path": "/api/cron/newsletter", "schedule": "0 * * * *" },
+    { "path": "/api/cron/notify", "schedule": "30 */6 * * *" },
+    { "path": "/api/cron/ambient", "schedule": "*/10 * * * *" }
+  ]
+}
