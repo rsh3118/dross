@@ -23,7 +23,13 @@ function result(value: unknown) {
 }
 
 export async function OPTIONS() {
-  return new Response(null, { status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'Authorization, Content-Type, Accept, Mcp-Session-Id, Mcp-Protocol-Version' } })
+  return new Response(null, { status: 204, headers: { 'access-control-allow-origin': '*',       'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS', 'access-control-allow-headers': 'Authorization, Content-Type, Accept, Mcp-Session-Id, Mcp-Protocol-Version' } })
+}
+
+export async function DELETE(request: Request) {
+  const sessionId = request.headers.get('Mcp-Session-Id')
+  if (!sessionId) return NextResponse.json({ error: 'Missing MCP session ID' }, { status: 400 })
+  return new Response(null, { status: 200, headers: { 'Mcp-Session-Id': sessionId } })
 }
 
 export async function GET() {
