@@ -13,12 +13,16 @@ export function createApiKeyValue() {
   return { secret, hash: hashKey(secret), prefix: secret.slice(0, 14) }
 }
 
-export async function requireApiUser(request?: Request) {
+export async function requireApiUser(request?: Request, requiredScope?: string) {
   const requestHeaders = request ? new Headers(request.headers) : await headers()
   const bearer = requestHeaders.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1]
   if (bearer) {
     const oauth = verifyOAuthToken(bearer)
-    if (oauth?.typ === 'mcp_access' && typeof oauth.sub === 'string') return { id: oauth.sub }
+    if (oauth?.typ === 'mcp_access' && typeof oauth.sub === 'string') {
+      const scopes = typeof oauth.scope === 'string' ? oauth.scope.split(/\\s+/) : []
+      if (requiredScope && !scopes.includes(requiredScope)) throw new Response('Forbidden', { status: 403 })
+      return { id: oauth.sub }
+    }
     const [key] = await db.select().from(apiKeys).where(and(eq(apiKeys.keyHash, hashKey(bearer)), isNull(apiKeys.revokedAt))).limit(1)
     if (key) {
       await db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, key.id))

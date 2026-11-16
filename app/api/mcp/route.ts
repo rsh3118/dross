@@ -52,19 +52,25 @@ export async function POST(request: Request) {
   if (body.method === 'notifications/initialized') return new NextResponse(null, { status: 202 })
   if (body.method === 'tools/list') return NextResponse.json({ jsonrpc: '2.0', id: body.id, result: { tools } })
 
-  if (body.method !== 'tools/call') return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32601, message: 'Method not found' } }, { status: 404 })
+  if (body.method !== 'tools/call') return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32601, message: 'Method not found' } })
+
+  const name = body.params?.name
+  const args = body.params?.arguments ?? {}
+  const requiredScope = name === 'get_database_schema' ? 'mcp:schema' : ['list_tasks', 'list_wiki_pages'].includes(name) ? 'mcp:read' : ['create_task', 'update_task'].includes(name) ? 'mcp:write' : null
+  if (!requiredScope) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Unknown tool' } })
 
   let user: { id: string }
   try {
-    user = await requireApiUser(request)
+    user = await requireApiUser(request, requiredScope)
   } catch (error) {
     if (error instanceof Response && error.status === 401) {
       return new Response('Unauthorized', { status: 401, headers: { 'www-authenticate': 'Bearer resource_metadata="https://www.dross.quest/.well-known/oauth-protected-resource", scope="mcp:read mcp:write mcp:schema"' } })
     }
+    if (error instanceof Response && error.status === 403) {
+      return new Response('Forbidden', { status: 403, headers: { 'www-authenticate': `Bearer error="insufficient_scope", scope="${requiredScope}"` } })
+    }
     throw error
   }
-  const name = body.params?.name
-  const args = body.params?.arguments ?? {}
   let value: unknown
 
   if (name === 'get_database_schema') value = schema
@@ -78,7 +84,7 @@ export async function POST(request: Request) {
     const [task] = await db.update(tasks).set({ ...(args.title !== undefined ? { title: String(args.title) } : {}), ...(urgency ? { urgency, topItem: urgency === 'top', today: urgency === 'today', thisWeek: urgency === 'week' } : {}) }).where(and(eq(tasks.id, Number(args.id)), eq(tasks.userId, user.id))).returning()
     value = task ?? { error: 'Task not found' }
   } else if (name === 'list_wiki_pages') value = await db.select().from(wikiPages).where(eq(wikiPages.userId, user.id))
-  else return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Unknown tool' } }, { status: 400 })
+  else return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Unknown tool' } })
 
   const response = NextResponse.json({ jsonrpc: '2.0', id: body.id, result: result(value) })
   const sessionId = request.headers.get('Mcp-Session-Id')
