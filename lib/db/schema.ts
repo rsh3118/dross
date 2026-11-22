@@ -1,5 +1,6 @@
 import {
   boolean,
+  index,
   integer,
   jsonb,
   pgTable,
@@ -172,6 +173,24 @@ export const tasks = pgTable('tasks', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+export const taskComments = pgTable(
+  'task_comments',
+  {
+    id: serial('id').primaryKey(),
+    userId: text('userId').notNull(),
+    taskId: integer('task_id').notNull(),
+    content: text('content').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userTaskCreatedIdx: index('task_comments_user_task_created_idx').on(
+      table.userId,
+      table.taskId,
+      table.createdAt,
+    ),
+  }),
+)
 
 // Mountains = long-range objectives (Notion "Mountains ⛰️" / 2026 Goals).
 export type StructureStatus = 'active' | 'done' | 'someday'

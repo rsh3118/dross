@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
+import useSWR from 'swr'
 import { format } from 'date-fns'
-import { Archive, FlaskConical, Trash2 } from 'lucide-react'
+import { Archive, FlaskConical, Send, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type {
   Recurrence,
@@ -14,7 +15,14 @@ import type {
   TaskStatus,
   TaskType,
 } from '@/lib/db/schema'
-import { archiveTask, deleteTask, researchTask, updateTask } from '@/app/actions/tasks'
+import {
+  addTaskComment,
+  archiveTask,
+  deleteTask,
+  listTaskComments,
+  researchTask,
+  updateTask,
+} from '@/app/actions/tasks'
 import {
   CATEGORIES_BY_GROUP,
   CATEGORY_LABELS,
@@ -68,6 +76,16 @@ export function TaskSheet({
   const [due, setDue] = useState('')
   const [tags, setTags] = useState('')
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const [commentDraft, setCommentDraft] = useState('')
+  const [commentPending, startCommentTransition] = useTransition()
+  const {
+    data: comments,
+    error: commentsError,
+    isLoading: commentsLoading,
+    mutate: refreshComments,
+  } = useSWR(task ? `task-comments-${task.id}` : null, () =>
+    task ? listTaskComments(task.id) : Promise.resolve([]),
+  )
 
   // Value-based dirty tracking: cleanRef holds the serialized snapshot that is
   // known to match the server, so opening a task never triggers a spurious save.
@@ -108,6 +126,7 @@ export function TaskSheet({
     setTopItem(task.topItem)
     setDue(task.dueAt ? format(task.dueAt, "yyyy-MM-dd'T'HH:mm") : '')
     setTags(task.tags.join(', '))
+    setCommentDraft('')
     cleanRef.current = JSON.stringify({
       title: task.title,
       description: task.description ?? '',
@@ -350,6 +369,64 @@ export function TaskSheet({
               placeholder="admin, health, reading"
             />
           </div>
+
+          <section className="flex flex-col gap-3" aria-labelledby="task-comments-heading">
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 id="task-comments-heading" className="text-sm font-semibold">Comments</h3>
+              <span className="text-xs text-muted-foreground">
+                {comments?.length ?? 0} {comments?.length === 1 ? 'comment' : 'comments'}
+              </span>
+            </div>
+            {commentsLoading ? (
+              <p className="text-sm text-muted-foreground" role="status">Loading comments…</p>
+            ) : commentsError ? (
+              <p className="text-sm text-destructive" role="alert">Could not load comments.</p>
+            ) : comments?.length ? (
+              <ol className="flex flex-col gap-3" aria-live="polite">
+                {comments.map((comment) => (
+                  <li key={comment.id} className="rounded-md border bg-background/60 p-3">
+                    <time className="text-xs text-muted-foreground" dateTime={comment.createdAt.toISOString()}>
+                      {format(comment.createdAt, 'MMM d, yyyy · h:mm a')}
+                    </time>
+                    <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">{comment.content}</p>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="text-sm text-muted-foreground">No comments yet. Add the first one below.</p>
+            )}
+            <form
+              className="flex flex-col items-end gap-2"
+              onSubmit={(event) => {
+                event.preventDefault()
+                const content = commentDraft.trim()
+                if (!content || !task || commentPending) return
+                startCommentTransition(async () => {
+                  try {
+                    await addTaskComment(task.id, content)
+                    setCommentDraft('')
+                    await refreshComments()
+                  } catch {
+                    toast.error('Could not add comment')
+                  }
+                })
+              }}
+            >
+              <Label htmlFor="t-comment" className="sr-only">Add a comment</Label>
+              <Textarea
+                id="t-comment"
+                rows={2}
+                maxLength={4000}
+                value={commentDraft}
+                onChange={(event) => setCommentDraft(event.target.value)}
+                placeholder="Write a comment…"
+              />
+              <Button type="submit" size="sm" disabled={!commentDraft.trim() || commentPending}>
+                Add comment
+                <Send data-icon="inline-end" />
+              </Button>
+            </form>
+          </section>
 
           <div className="rounded-md border bg-muted/30 p-3 flex flex-col gap-2">
             <div className="flex items-center gap-2">

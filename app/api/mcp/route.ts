@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { randomUUID } from 'node:crypto'
-import { and, desc, eq, isNull } from 'drizzle-orm'
+import { and, asc, desc, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { journalEntries, tasks, wikiPages, type JournalBody, type JournalType, type WikiStatus } from '@/lib/db/schema'
+import { journalEntries, taskComments, tasks, wikiPages, type JournalBody, type JournalType, type WikiStatus } from '@/lib/db/schema'
 import { requireApiUser } from '@/lib/api-auth'
 import { createWikiPage, updateWikiPage } from '@/lib/wiki'
 import { emptyBodyFor } from '@/lib/journal'
@@ -13,6 +13,8 @@ const tools = [
   { name: 'list_tasks', description: 'List tasks belonging to the authenticated Dross user.', inputSchema: { type: 'object', properties: { limit: { type: 'number' } } } },
   { name: 'create_task', description: 'Create a task. Urgency is top, today, week, or backlog and defaults to top.', inputSchema: { type: 'object', required: ['title'], properties: { title: { type: 'string' }, urgency: { type: 'string', enum: ['top', 'today', 'week', 'backlog'] } } } },
   { name: 'update_task', description: 'Update a task title or urgency.', inputSchema: { type: 'object', required: ['id'], properties: { id: { type: 'number' }, title: { type: 'string' }, urgency: { type: 'string', enum: ['top', 'today', 'week', 'backlog'] } } } },
+  { name: 'list_task_comments', description: 'List comments on a task belonging to the authenticated Dross user.', inputSchema: { type: 'object', required: ['taskId'], properties: { taskId: { type: 'integer', minimum: 1 } } } },
+  { name: 'add_task_comment', description: 'Add a comment to a task belonging to the authenticated Dross user.', inputSchema: { type: 'object', required: ['taskId', 'content'], properties: { taskId: { type: 'integer', minimum: 1 }, content: { type: 'string', minLength: 1, maxLength: 4000 } } } },
   { name: 'list_wiki_pages', description: 'List active wiki pages, including their content, belonging to the authenticated Dross user.', inputSchema: { type: 'object', properties: {} } },
   { name: 'get_wiki_page', description: 'Read one active wiki page by ID or slug for the authenticated Dross user.', inputSchema: { type: 'object', properties: { id: { type: 'integer', minimum: 1 }, slug: { type: 'string', minLength: 1, maxLength: 200 } }, anyOf: [{ required: ['id'] }, { required: ['slug'] }] } },
   { name: 'list_journal_entries', description: 'Read active journal entries belonging to the authenticated Dross user.', inputSchema: { type: 'object', properties: { type: { type: 'string', enum: ['daily', 'relationship'] }, limit: { type: 'integer', minimum: 1, maximum: 100 } } } },
@@ -23,7 +25,7 @@ const tools = [
 ]
 
 const schema = {
-  tables: ['user', 'session', 'account', 'tasks', 'mountains', 'boulders', 'wiki_pages', 'wiki_revisions', 'wiki_links', 'interests', 'agent_runs', 'proposals', 'newsletters', 'notifications', 'settings', 'recordings', 'captured_tasks', 'journal_entries'],
+  tables: ['user', 'session', 'account', 'tasks', 'task_comments', 'mountains', 'boulders', 'wiki_pages', 'wiki_revisions', 'wiki_links', 'interests', 'agent_runs', 'proposals', 'newsletters', 'notifications', 'settings', 'recordings', 'captured_tasks', 'journal_entries'],
   note: 'All data tools are authenticated and scoped to the current Dross user. Raw SQL is intentionally not exposed.',
 }
 
@@ -95,7 +97,7 @@ export async function POST(request: Request) {
 
   const name = body.params?.name
   const args = body.params?.arguments ?? {}
-  const requiredScope = name === 'get_database_schema' ? 'mcp:schema' : ['list_tasks', 'list_wiki_pages', 'get_wiki_page', 'list_journal_entries'].includes(name) ? 'mcp:read' : ['create_task', 'update_task', 'create_wiki_page', 'update_wiki_page', 'create_journal_entry', 'update_journal_entry'].includes(name) ? 'mcp:write' : null
+  const requiredScope = name === 'get_database_schema' ? 'mcp:schema' : ['list_tasks', 'list_task_comments', 'list_wiki_pages', 'get_wiki_page', 'list_journal_entries'].includes(name) ? 'mcp:read' : ['create_task', 'update_task', 'add_task_comment', 'create_wiki_page', 'update_wiki_page', 'create_journal_entry', 'update_journal_entry'].includes(name) ? 'mcp:write' : null
   if (!requiredScope) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Unknown tool' } })
 
   let user: { id: string }
@@ -122,6 +124,24 @@ export async function POST(request: Request) {
     const urgency = args.urgency
     const [task] = await db.update(tasks).set({ ...(args.title !== undefined ? { title: String(args.title) } : {}), ...(urgency ? { urgency, topItem: urgency === 'top', today: urgency === 'today', thisWeek: urgency === 'week' } : {}) }).where(and(eq(tasks.id, Number(args.id)), eq(tasks.userId, user.id))).returning()
     value = task ?? { error: 'Task not found' }
+  } else if (name === 'list_task_comments') {
+    if (!Number.isSafeInteger(args.taskId) || args.taskId < 1) {
+      return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid task ID' } })
+    }
+    const [task] = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.id, args.taskId), eq(tasks.userId, user.id))).limit(1)
+    value = task
+      ? await db.select().from(taskComments).where(and(eq(taskComments.taskId, args.taskId), eq(taskComments.userId, user.id))).orderBy(asc(taskComments.createdAt), asc(taskComments.id))
+      : { error: 'Task not found' }
+  } else if (name === 'add_task_comment') {
+    if (!Number.isSafeInteger(args.taskId) || args.taskId < 1 || typeof args.content !== 'string' || !args.content.trim() || args.content.trim().length > 4000) {
+      return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid task comment fields' } })
+    }
+    const [task] = await db.select({ id: tasks.id }).from(tasks).where(and(eq(tasks.id, args.taskId), eq(tasks.userId, user.id))).limit(1)
+    if (!task) value = { error: 'Task not found' }
+    else {
+      const [comment] = await db.insert(taskComments).values({ userId: user.id, taskId: args.taskId, content: args.content.trim() }).returning()
+      value = comment
+    }
   } else if (name === 'list_wiki_pages') value = await db.select().from(wikiPages).where(and(eq(wikiPages.userId, user.id), isNull(wikiPages.archivedAt))).orderBy(desc(wikiPages.updatedAt))
   else if (name === 'get_wiki_page') {
     const hasId = Number.isSafeInteger(args.id) && args.id > 0
