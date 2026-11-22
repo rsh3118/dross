@@ -429,7 +429,8 @@ export type JournalInteraction = {
 
 export type JournalTimeSpent = {
   activity: string
-  minutes: number | null
+  duration?: string
+  minutes?: number | null
   feelings: string
   notes: string
 }
@@ -512,7 +513,27 @@ export const dossierReflections = pgTable('dossier_reflections', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+export type DossierCommentTarget = 'person' | 'history' | 'reflection'
+export type DossierCommentAction = 'create' | 'update' | 'delete'
+
+export const dossierComments = pgTable('dossier_comments', {
+  id: serial('id').primaryKey(),
+  userId: text('userId').notNull(),
+  personId: integer('person_id').notNull(),
+  personName: text('person_name').notNull(),
+  targetType: text('target_type').$type<DossierCommentTarget>().notNull(),
+  targetId: integer('target_id'),
+  action: text('action').$type<DossierCommentAction>().notNull(),
+  actor: text('actor').$type<DossierReflectionActor>().notNull().default('me'),
+  comment: text('comment').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  userPersonCreatedAtIdx: index('dossier_comments_user_person_created_at_idx').on(table.userId, table.personId, table.createdAt),
+  userCreatedAtIdx: index('dossier_comments_user_created_at_idx').on(table.userId, table.createdAt),
+}))
+
 export type DossierPerson = typeof dossierPeople.$inferSelect
+export type DossierComment = typeof dossierComments.$inferSelect
 export type DossierHistoryRecord = typeof dossierHistory.$inferSelect
 export type DossierReflection = typeof dossierReflections.$inferSelect
 

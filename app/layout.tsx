@@ -37,8 +37,8 @@ export const viewport: Viewport = {
   colorScheme: 'dark light',
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f7f6f3' },
-    { media: '(prefers-color-scheme: dark)', color: '#15171d' },
+    { media: '(prefers-color-scheme: light)', color: '#f2f8ff' },
+    { media: '(prefers-color-scheme: dark)', color: '#323d53' },
   ],
 }
 
@@ -50,7 +50,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="bg-background" suppressHydrationWarning>
       <body className="antialiased font-sans">
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           {children}
           <Toaster position="bottom-right" />
         </ThemeProvider>

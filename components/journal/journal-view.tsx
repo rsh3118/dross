@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
-import { Archive, ChevronDown, Download, Heart, NotebookPen, Plus, Search } from 'lucide-react'
+import { Archive, ChevronDown, Download, Heart, NotebookPen, Plus, Search, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import type {
   DailyJournalBody,
@@ -270,7 +270,7 @@ function EditorShell({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-6 rounded-lg border bg-card p-4 md:p-6">
+    <div className="dross-sheen flex flex-col gap-6 rounded-lg border bg-card p-4 md:p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1 min-w-0">
           <span className="font-mono text-[10px] uppercase tracking-widest text-primary">
@@ -318,39 +318,32 @@ function DailyEditor({ entry }: { entry: JournalEntry }) {
     <EditorShell
       id={entry.id}
       eyebrow={formatEntryDate(entry.entryDate)}
-      header={<h2 className="text-lg font-semibold tracking-tight">Daily reflection</h2>}
-    >
-      <div className="grid gap-6 md:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <label htmlFor={`day-${entry.id}`} className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-            How did the day go?
-          </label>
-          <Input
-            id={`day-${entry.id}`}
-            value={summary}
-            onChange={(e) => setSummary(e.target.value)}
-            onBlur={() => {
-              if (summary !== (entry.summary ?? '')) persist({ summary })
-            }}
-            placeholder="One line on the day overall…"
-          />
+      header={(
+        <div className="flex items-center gap-2">
+          <Sparkles className="dross-spin size-4 text-primary" aria-hidden="true" />
+          <h2 className="text-lg font-semibold tracking-tight">Daily reflection</h2>
         </div>
+      )}
+    >
+      <section aria-labelledby={`feelings-${entry.id}`} className="flex flex-col gap-5 rounded-md border bg-muted/20 p-4 md:p-5">
+        <h3 id={`feelings-${entry.id}`} className="font-mono text-xs uppercase tracking-widest text-primary">Feelings &amp; the day</h3>
         <ListEditor title="Big feelings today" items={body.feelings} onChange={(next) => updateList('feelings', next)} placeholder="Name a feeling…" />
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <label htmlFor={`day-${entry.id}`} className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">How did the day go?</label>
+          <Input id={`day-${entry.id}`} value={summary} onChange={(e) => setSummary(e.target.value)} onBlur={() => { if (summary !== (entry.summary ?? '')) persist({ summary }) }} placeholder="One line on the day overall…" />
+        </div>
         <ListEditor title="What went well" items={body.wentWell} onChange={(next) => updateList('wentWell', next)} placeholder="A win, big or small…" tone="positive" />
-        <ListEditor title="What didn't go well" items={body.wentPoorly} onChange={(next) => updateList('wentPoorly', next)} placeholder="A snag or regret…" tone="negative" />
-      </div>
+        <ListEditor title="What didn’t go well" items={body.wentPoorly} onChange={(next) => updateList('wentPoorly', next)} placeholder="A snag or regret…" tone="negative" />
+      </section>
 
-      <div className="flex flex-col gap-4 rounded-md border border-dashed p-4">
-        <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">Lessons</span>
-        <div className="grid gap-6 md:grid-cols-3">
+      <section aria-labelledby={`lessons-${entry.id}`} className="flex flex-col gap-5 rounded-md border bg-muted/20 p-4 md:p-5">
+        <h3 id={`lessons-${entry.id}`} className="font-mono text-xs uppercase tracking-widest text-primary">Lessons</h3>
+        <div className="flex flex-col gap-6">
           <ListEditor title="Short term" items={body.lessonsShort} onChange={(next) => updateList('lessonsShort', next)} placeholder="For this week…" />
           <ListEditor title="Medium term" items={body.lessonsMedium} onChange={(next) => updateList('lessonsMedium', next)} placeholder="For this season…" />
           <ListEditor title="Long term" items={body.lessonsLong} onChange={(next) => updateList('lessonsLong', next)} placeholder="For life…" />
         </div>
-      </div>
+      </section>
 
       <TrackingEditors
         interactions={body.interactions ?? []}
@@ -398,19 +391,22 @@ function RelationshipEditor({ entry }: { entry: JournalEntry }) {
     <EditorShell
       id={entry.id}
       eyebrow={formatEntryDate(entry.entryDate)}
-      header={
-        <Input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onBlur={() => {
-            if (title !== (entry.title ?? '')) persist({ title })
-          }}
-          placeholder="Who or what is this about?"
-          className="h-auto border-0 bg-transparent p-0 text-lg font-semibold tracking-tight shadow-none focus-visible:ring-0"
-        />
-      }
+      header={(
+        <div className="flex min-w-0 items-center gap-2">
+          <Sparkles className="dross-spin size-4 shrink-0 text-primary" aria-hidden="true" />
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={() => {
+              if (title !== (entry.title ?? '')) persist({ title })
+            }}
+            placeholder="Who or what is this about?"
+            className="h-auto min-w-0 flex-1 border-0 bg-transparent p-0 text-lg font-semibold tracking-tight shadow-none focus-visible:ring-0"
+          />
+        </div>
+      )}
     >
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <section aria-label="Relationship reflection" className="flex flex-col gap-5 rounded-md border bg-muted/20 p-4 md:p-5">
         <ListEditor title="What went well" items={body.wentWell} onChange={(next) => updateList('wentWell', next)} placeholder="A good moment…" tone="positive" />
         <ListEditor title="What went bad" items={body.wentBad} onChange={(next) => updateList('wentBad', next)} placeholder="A hard moment…" tone="negative" />
         <ListEditor title="What I did well" items={body.didWell} onChange={(next) => updateList('didWell', next)} placeholder="Something I handled right…" tone="positive" />
@@ -418,7 +414,7 @@ function RelationshipEditor({ entry }: { entry: JournalEntry }) {
         <ListEditor title="What I can't accept about her" items={body.cannotAccept} onChange={(next) => updateList('cannotAccept', next)} placeholder="A real boundary or dealbreaker…" tone="negative" />
         <ListEditor title="What I can improve" items={body.canImprove} onChange={(next) => updateList('canImprove', next)} placeholder="Something on me to work on…" />
         <ListEditor title="What did I learn" items={body.learned} onChange={(next) => updateList('learned', next)} placeholder="An insight to carry forward…" />
-      </div>
+      </section>
 
       <TrackingEditors
         interactions={body.interactions ?? []}
