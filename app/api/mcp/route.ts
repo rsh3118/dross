@@ -4,11 +4,22 @@ import { and, asc, desc, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import {
+  agentRuns,
+  amazonPurchases,
+  boulders,
+  capturedTasks,
   dossierComments,
   dossierHistory,
   dossierPeople,
   dossierReflections,
+  interests,
   journalEntries,
+  mountains,
+  notifications,
+  newsletters,
+  proposals,
+  recordings,
+  settings,
   taskComments,
   tasks,
   wikiPages,
@@ -20,6 +31,7 @@ import {
 import { requireApiUser } from '@/lib/api-auth'
 import { createWikiPage, updateWikiPage } from '@/lib/wiki'
 import { emptyBodyFor } from '@/lib/journal'
+import { resolveCaptured } from '@/lib/ambient-process'
 
 const interactionRecordSchema = {
   type: 'object',
@@ -67,15 +79,46 @@ const tools = [
   { name: 'delete_dossier_reflection', description: 'Delete a reflection belonging to a person in the authenticated user’s Dosier.', inputSchema: { type: 'object', required: ['personId', 'reflectionId'], properties: { personId: { type: 'integer', minimum: 1 }, reflectionId: { type: 'integer', minimum: 1 } } } },
   { name: 'create_wiki_page', description: 'Create a wiki page for the authenticated Dross user.', inputSchema: { type: 'object', required: ['title', 'content'], properties: { title: { type: 'string', maxLength: 200 }, content: { type: 'string', maxLength: 100000 }, summary: { type: 'string', maxLength: 2000 }, tags: { type: 'array', items: { type: 'string', maxLength: 80 }, maxItems: 30 }, status: { type: 'string', enum: ['draft', 'published'] } } } },
   { name: 'update_wiki_page', description: 'Update an existing wiki page belonging to the authenticated Dross user.', inputSchema: { type: 'object', required: ['id'], properties: { id: { type: 'integer', minimum: 1 }, title: { type: 'string', maxLength: 200 }, content: { type: 'string', maxLength: 100000 }, summary: { anyOf: [{ type: 'string', maxLength: 2000 }, { type: 'null' }] }, tags: { type: 'array', items: { type: 'string', maxLength: 80 }, maxItems: 30 }, status: { type: 'string', enum: ['draft', 'published'] } } } },
+  { name: 'list_structure', description: 'List active mountains, boulders, and their linked task summaries.', inputSchema: { type: 'object', properties: {} } },
+  { name: 'create_mountain', description: 'Create a goal mountain.', inputSchema: { type: 'object', required: ['title'], properties: { title: { type: 'string', minLength: 1, maxLength: 160 }, description: { type: ['string', 'null'], maxLength: 2000 }, area: { type: 'string', enum: ['body', 'career', 'relationships', 'mind', 'finance', 'lifestyle', 'other'] }, status: { type: 'string', enum: ['active', 'done', 'someday'] }, progress: { type: 'integer', minimum: 0, maximum: 100 } } } },
+  { name: 'update_mountain', description: 'Update a mountain.', inputSchema: { type: 'object', required: ['id'], properties: { id: { type: 'integer', minimum: 1 }, title: { type: 'string', minLength: 1, maxLength: 160 }, description: { type: ['string', 'null'], maxLength: 2000 }, area: { type: 'string', enum: ['body', 'career', 'relationships', 'mind', 'finance', 'lifestyle', 'other'] }, status: { type: 'string', enum: ['active', 'done', 'someday'] }, progress: { type: 'integer', minimum: 0, maximum: 100 } } } },
+  { name: 'archive_mountain', description: 'Archive a mountain and detach its linked boulders and tasks.', inputSchema: { type: 'object', required: ['id'], properties: { id: { type: 'integer', minimum: 1 } } } },
+  { name: 'create_boulder', description: 'Create a project boulder, optionally linked to a mountain.', inputSchema: { type: 'object', required: ['title'], properties: { title: { type: 'string', minLength: 1, maxLength: 160 }, description: { type: ['string', 'null'], maxLength: 2000 }, mountainId: { type: ['integer', 'null'], minimum: 1 }, status: { type: 'string', enum: ['active', 'done', 'someday'] } } } },
+  { name: 'update_boulder', description: 'Update a boulder.', inputSchema: { type: 'object', required: ['id'], properties: { id: { type: 'integer', minimum: 1 }, title: { type: 'string', minLength: 1, maxLength: 160 }, description: { type: ['string', 'null'], maxLength: 2000 }, mountainId: { type: ['integer', 'null'], minimum: 1 }, status: { type: 'string', enum: ['active', 'done', 'someday'] } } } },
+  { name: 'archive_boulder', description: 'Archive a boulder and detach linked tasks.', inputSchema: { type: 'object', required: ['id'], properties: { id: { type: 'integer', minimum: 1 } } } },
+  { name: 'list_interests', description: 'List research interests.', inputSchema: { type: 'object', properties: {} } },
+  { name: 'add_interest', description: 'Add a research interest and optional keywords and weight.', inputSchema: { type: 'object', required: ['topic'], properties: { topic: { type: 'string', minLength: 1, maxLength: 200 }, keywords: { type: 'array', maxItems: 30, items: { type: 'string', maxLength: 80 } }, weight: { type: 'integer', minimum: 1, maximum: 5 } } } },
+  { name: 'remove_interest', description: 'Remove one of your research interests.', inputSchema: { type: 'object', required: ['id'], properties: { id: { type: 'integer', minimum: 1 } } } },
+  { name: 'list_notifications', description: 'List your notifications.', inputSchema: { type: 'object', properties: { limit: { type: 'integer', minimum: 1, maximum: 100 } } } },
+  { name: 'mark_notification_read', description: 'Mark one of your notifications as read.', inputSchema: { type: 'object', required: ['id'], properties: { id: { type: 'integer', minimum: 1 } } } },
+  { name: 'list_agent_runs', description: 'List recent agent runs; optionally filter by agent name.', inputSchema: { type: 'object', properties: { agent: { type: 'string', enum: ['research', 'housekeeping', 'newsletter', 'notify', 'code'] }, limit: { type: 'integer', minimum: 1, maximum: 100 } } } },
+  { name: 'list_captured_tasks', description: 'List pending tasks captured from recordings without exposing recording credentials.', inputSchema: { type: 'object', properties: { limit: { type: 'integer', minimum: 1, maximum: 100 } } } },
+  { name: 'resolve_captured_task', description: 'Approve or dismiss a captured task. Approval may create or update a task.', inputSchema: { type: 'object', required: ['id', 'action'], properties: { id: { type: 'integer', minimum: 1 }, action: { type: 'string', enum: ['approve', 'dismiss'] } } } },
+  { name: 'list_proposals', description: 'List your agent proposals and their current review status.', inputSchema: { type: 'object', properties: { limit: { type: 'integer', minimum: 1, maximum: 100 } } } },
+  { name: 'list_newsletters', description: 'List newsletters generated for your account.', inputSchema: { type: 'object', properties: { limit: { type: 'integer', minimum: 1, maximum: 100 } } } },
+  { name: 'list_purchases', description: 'List imported purchase records and their item summaries.', inputSchema: { type: 'object', properties: { limit: { type: 'integer', minimum: 1, maximum: 100 } } } },
+  { name: 'get_app_preferences', description: 'Read non-secret application preferences. Credential and recorder token fields are never returned.', inputSchema: { type: 'object', properties: {} } },
+  { name: 'update_app_preferences', description: 'Update non-secret application preferences; credential and recorder token fields are not writable through MCP.', inputSchema: { type: 'object', properties: { timezone: { type: 'string', maxLength: 100 }, newsletterDay: { type: 'integer', minimum: 0, maximum: 6 }, newsletterHour: { type: 'integer', minimum: 0, maximum: 23 }, notifyEmail: { type: 'boolean' }, quietStart: { type: 'integer', minimum: 0, maximum: 23 }, quietEnd: { type: 'integer', minimum: 0, maximum: 23 }, housekeepingEnabled: { type: 'boolean' }, researchAuto: { type: 'boolean' }, ambientEnabled: { type: 'boolean' }, ambientEmailApproval: { type: 'boolean' } } } },
+  { name: 'list_recordings', description: 'List your recording statuses and transcripts without returning private blob paths or recorder credentials.', inputSchema: { type: 'object', properties: { limit: { type: 'integer', minimum: 1, maximum: 100 } } } },
 ]
 
 const schema = {
-  tables: ['user', 'session', 'account', 'tasks', 'task_comments', 'mountains', 'boulders', 'wiki_pages', 'wiki_revisions', 'wiki_links', 'interests', 'agent_runs', 'proposals', 'newsletters', 'notifications', 'settings', 'recordings', 'captured_tasks', 'journal_entries', 'dossier_people', 'dossier_history', 'dossier_reflections', 'dossier_comments'],
+  tables: ['tasks', 'task_comments', 'task_subtasks', 'mountains', 'boulders', 'wiki_pages', 'wiki_revisions', 'wiki_links', 'interests', 'agent_runs', 'proposals', 'newsletters', 'notifications', 'recordings', 'captured_tasks', 'journal_entries', 'dossier_people', 'dossier_history', 'dossier_reflections', 'dossier_comments', 'amazon_purchases'],
   note: 'All data tools are authenticated and scoped to the current Dross user. Raw SQL is intentionally not exposed.',
 }
 
 function result(value: unknown) {
   return { content: [{ type: 'text', text: JSON.stringify(value) }] }
+}
+
+function isValidTimezone(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length > 100) return false
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value })
+    return true
+  } catch {
+    return false
+  }
 }
 
 function isValidTags(value: unknown): value is string[] {
@@ -161,7 +204,7 @@ export async function POST(request: Request) {
 
   const name = body.params?.name
   const args = body.params?.arguments ?? {}
-  const requiredScope = name === 'get_database_schema' ? 'mcp:schema' : ['list_tasks', 'list_task_comments', 'list_wiki_pages', 'get_wiki_page', 'list_journal_entries', 'list_dossier_people', 'get_dossier_person', 'list_dossier_comments'].includes(name) ? 'mcp:read' : ['create_task', 'update_task', 'add_task_comment', 'create_wiki_page', 'update_wiki_page', 'create_journal_entry', 'update_journal_entry', 'archive_journal_entry', 'create_dossier_person', 'update_dossier_person', 'delete_dossier_person', 'create_dossier_history', 'delete_dossier_history', 'create_dossier_reflection', 'delete_dossier_reflection'].includes(name) ? 'mcp:write' : null
+  const requiredScope = name === 'get_database_schema' ? 'mcp:schema' : ['list_tasks', 'list_task_comments', 'list_wiki_pages', 'get_wiki_page', 'list_journal_entries', 'list_dossier_people', 'get_dossier_person', 'list_dossier_comments', 'list_structure', 'list_interests', 'list_notifications', 'list_agent_runs', 'list_captured_tasks', 'list_proposals', 'list_newsletters', 'list_purchases', 'get_app_preferences', 'list_recordings'].includes(name) ? 'mcp:read' : ['update_app_preferences', 'resolve_captured_task', 'create_task', 'update_task', 'add_task_comment', 'create_wiki_page', 'update_wiki_page', 'create_journal_entry', 'update_journal_entry', 'archive_journal_entry', 'create_dossier_person', 'update_dossier_person', 'delete_dossier_person', 'create_dossier_history', 'delete_dossier_history', 'create_dossier_reflection', 'delete_dossier_reflection', 'create_mountain', 'update_mountain', 'archive_mountain', 'create_boulder', 'update_boulder', 'archive_boulder', 'add_interest', 'remove_interest', 'mark_notification_read'].includes(name) ? 'mcp:write' : null
   if (!requiredScope) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Unknown tool' } })
 
   let user: { id: string }
@@ -496,6 +539,106 @@ export async function POST(request: Request) {
       return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid wiki page fields' } })
     }
     value = await updateWikiPage({ userId: user.id, id: args.id, title: args.title?.trim(), content: args.content, summary: args.summary, tags: args.tags, status: args.status as WikiStatus | undefined, authoredBy: 'user' })
+  } else if (name === 'list_structure') {
+    const [activeMountains, activeBoulders, taskSummaries] = await Promise.all([
+      db.select().from(mountains).where(and(eq(mountains.userId, user.id), isNull(mountains.archivedAt))).orderBy(desc(mountains.createdAt)),
+      db.select().from(boulders).where(and(eq(boulders.userId, user.id), isNull(boulders.archivedAt))).orderBy(desc(boulders.createdAt)),
+      db.select({ id: tasks.id, title: tasks.title, status: tasks.status, mountainId: tasks.mountainId, boulderId: tasks.boulderId }).from(tasks).where(and(eq(tasks.userId, user.id), isNull(tasks.archivedAt))).limit(500),
+    ])
+    value = { mountains: activeMountains, boulders: activeBoulders, tasks: taskSummaries }
+  } else if (name === 'create_mountain') {
+    if (typeof args.title !== 'string' || !args.title.trim() || args.title.trim().length > 160 || (args.description !== undefined && args.description !== null && (typeof args.description !== 'string' || args.description.length > 2000)) || (args.area !== undefined && !['body', 'career', 'relationships', 'mind', 'finance', 'lifestyle', 'other'].includes(args.area)) || (args.status !== undefined && !['active', 'done', 'someday'].includes(args.status)) || (args.progress !== undefined && (!Number.isSafeInteger(args.progress) || args.progress < 0 || args.progress > 100))) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid mountain fields' } })
+    const [row] = await db.insert(mountains).values({ userId: user.id, title: args.title.trim(), description: args.description ?? null, area: args.area ?? 'other', status: args.status ?? 'active', progress: args.progress ?? 0 }).returning()
+    value = row
+  } else if (name === 'update_mountain') {
+    if (!Number.isSafeInteger(args.id) || args.id < 1 || !['title', 'description', 'area', 'status', 'progress'].some((key) => args[key] !== undefined) || (args.title !== undefined && (typeof args.title !== 'string' || !args.title.trim() || args.title.trim().length > 160)) || (args.description !== undefined && args.description !== null && (typeof args.description !== 'string' || args.description.length > 2000)) || (args.area !== undefined && !['body', 'career', 'relationships', 'mind', 'finance', 'lifestyle', 'other'].includes(args.area)) || (args.status !== undefined && !['active', 'done', 'someday'].includes(args.status)) || (args.progress !== undefined && (!Number.isSafeInteger(args.progress) || args.progress < 0 || args.progress > 100))) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid mountain fields' } })
+    const [row] = await db.update(mountains).set({ ...(args.title !== undefined ? { title: args.title.trim() } : {}), ...(args.description !== undefined ? { description: args.description } : {}), ...(args.area !== undefined ? { area: args.area } : {}), ...(args.status !== undefined ? { status: args.status } : {}), ...(args.progress !== undefined ? { progress: args.progress } : {}), updatedAt: new Date() }).where(and(eq(mountains.id, args.id), eq(mountains.userId, user.id), isNull(mountains.archivedAt))).returning()
+    value = row ?? { error: 'Mountain not found' }
+  } else if (name === 'archive_mountain') {
+    if (!Number.isSafeInteger(args.id) || args.id < 1) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid mountain ID' } })
+    value = await db.transaction(async (tx) => {
+      const [row] = await tx.update(mountains).set({ archivedAt: new Date(), updatedAt: new Date() }).where(and(eq(mountains.id, args.id), eq(mountains.userId, user.id), isNull(mountains.archivedAt))).returning({ id: mountains.id })
+      if (!row) return { error: 'Mountain not found' }
+      await tx.update(boulders).set({ mountainId: null, updatedAt: new Date() }).where(and(eq(boulders.mountainId, row.id), eq(boulders.userId, user.id)))
+      await tx.update(tasks).set({ mountainId: null, updatedAt: new Date() }).where(and(eq(tasks.mountainId, row.id), eq(tasks.userId, user.id)))
+      return { archived: true, id: row.id }
+    })
+  } else if (name === 'create_boulder') {
+    if (typeof args.title !== 'string' || !args.title.trim() || args.title.trim().length > 160 || (args.description !== undefined && args.description !== null && (typeof args.description !== 'string' || args.description.length > 2000)) || (args.mountainId !== undefined && args.mountainId !== null && (!Number.isSafeInteger(args.mountainId) || args.mountainId < 1)) || (args.status !== undefined && !['active', 'done', 'someday'].includes(args.status))) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid boulder fields' } })
+    if (args.mountainId) { const [parent] = await db.select({ id: mountains.id }).from(mountains).where(and(eq(mountains.id, args.mountainId), eq(mountains.userId, user.id), isNull(mountains.archivedAt))).limit(1); if (!parent) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Mountain not found' } }) }
+    const [row] = await db.insert(boulders).values({ userId: user.id, title: args.title.trim(), description: args.description ?? null, mountainId: args.mountainId ?? null, status: args.status ?? 'active' }).returning()
+    value = row
+  } else if (name === 'update_boulder') {
+    if (!Number.isSafeInteger(args.id) || args.id < 1 || !['title', 'description', 'mountainId', 'status'].some((key) => args[key] !== undefined) || (args.title !== undefined && (typeof args.title !== 'string' || !args.title.trim() || args.title.trim().length > 160)) || (args.description !== undefined && args.description !== null && (typeof args.description !== 'string' || args.description.length > 2000)) || (args.mountainId !== undefined && args.mountainId !== null && (!Number.isSafeInteger(args.mountainId) || args.mountainId < 1)) || (args.status !== undefined && !['active', 'done', 'someday'].includes(args.status))) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid boulder fields' } })
+    if (args.mountainId) { const [parent] = await db.select({ id: mountains.id }).from(mountains).where(and(eq(mountains.id, args.mountainId), eq(mountains.userId, user.id), isNull(mountains.archivedAt))).limit(1); if (!parent) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Mountain not found' } }) }
+    const [row] = await db.update(boulders).set({ ...(args.title !== undefined ? { title: args.title.trim() } : {}), ...(args.description !== undefined ? { description: args.description } : {}), ...(args.mountainId !== undefined ? { mountainId: args.mountainId } : {}), ...(args.status !== undefined ? { status: args.status } : {}), updatedAt: new Date() }).where(and(eq(boulders.id, args.id), eq(boulders.userId, user.id), isNull(boulders.archivedAt))).returning()
+    value = row ?? { error: 'Boulder not found' }
+  } else if (name === 'archive_boulder') {
+    if (!Number.isSafeInteger(args.id) || args.id < 1) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid boulder ID' } })
+    value = await db.transaction(async (tx) => {
+      const [row] = await tx.update(boulders).set({ archivedAt: new Date(), updatedAt: new Date() }).where(and(eq(boulders.id, args.id), eq(boulders.userId, user.id), isNull(boulders.archivedAt))).returning({ id: boulders.id })
+      if (!row) return { error: 'Boulder not found' }
+      await tx.update(tasks).set({ boulderId: null, updatedAt: new Date() }).where(and(eq(tasks.boulderId, row.id), eq(tasks.userId, user.id)))
+      return { archived: true, id: row.id }
+    })
+  } else if (name === 'list_interests') {
+    value = await db.select().from(interests).where(eq(interests.userId, user.id)).orderBy(asc(interests.topic)).limit(200)
+  } else if (name === 'add_interest') {
+    if (typeof args.topic !== 'string' || !args.topic.trim() || args.topic.trim().length > 200 || (args.weight !== undefined && (!Number.isSafeInteger(args.weight) || args.weight < 1 || args.weight > 5)) || (args.keywords !== undefined && (!Array.isArray(args.keywords) || args.keywords.length > 30 || !args.keywords.every((word: unknown) => typeof word === 'string' && word.trim().length <= 80)))) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid interest fields' } })
+    const [row] = await db.insert(interests).values({ userId: user.id, topic: args.topic.trim(), keywords: args.keywords?.map((word: string) => word.trim()).filter(Boolean) ?? [], weight: args.weight ?? 3 }).returning()
+    value = row
+  } else if (name === 'remove_interest') {
+    if (!Number.isSafeInteger(args.id) || args.id < 1) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid interest ID' } })
+    const [row] = await db.delete(interests).where(and(eq(interests.id, args.id), eq(interests.userId, user.id))).returning({ id: interests.id })
+    value = row ? { removed: true, id: row.id } : { error: 'Interest not found' }
+  } else if (name === 'list_notifications') {
+    const limit = args.limit === undefined ? 50 : args.limit
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid notification limit' } })
+    value = await db.select().from(notifications).where(eq(notifications.userId, user.id)).orderBy(desc(notifications.createdAt)).limit(limit)
+  } else if (name === 'mark_notification_read') {
+    if (!Number.isSafeInteger(args.id) || args.id < 1) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid notification ID' } })
+    const [row] = await db.update(notifications).set({ readAt: new Date() }).where(and(eq(notifications.id, args.id), eq(notifications.userId, user.id))).returning({ id: notifications.id })
+    value = row ? { read: true, id: row.id } : { error: 'Notification not found' }
+  } else if (name === 'list_agent_runs') {
+    const limit = args.limit === undefined ? 30 : args.limit
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100 || (args.agent !== undefined && !['research', 'housekeeping', 'newsletter', 'notify', 'code'].includes(args.agent))) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid agent run filters' } })
+    const filters = [eq(agentRuns.userId, user.id)]
+    if (args.agent !== undefined) filters.push(eq(agentRuns.agent, args.agent))
+    value = await db.select().from(agentRuns).where(and(...filters)).orderBy(desc(agentRuns.startedAt)).limit(limit)
+  } else if (name === 'list_captured_tasks') {
+    const limit = args.limit === undefined ? 50 : args.limit
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid captured task limit' } })
+    value = await db.select({ id: capturedTasks.id, kind: capturedTasks.kind, targetTaskId: capturedTasks.targetTaskId, title: capturedTasks.title, payload: capturedTasks.payload, group: capturedTasks.group, excerpt: capturedTasks.excerpt, status: capturedTasks.status, createdAt: capturedTasks.createdAt }).from(capturedTasks).where(and(eq(capturedTasks.userId, user.id), eq(capturedTasks.status, 'pending'))).orderBy(desc(capturedTasks.createdAt)).limit(limit)
+  } else if (name === 'resolve_captured_task') {
+    if (!Number.isSafeInteger(args.id) || args.id < 1 || !['approve', 'dismiss'].includes(args.action)) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid captured task resolution' } })
+    const resolved = await resolveCaptured(user.id, args.action, args.id)
+    value = resolved ? { resolved: true, id: args.id, action: args.action } : { error: 'Pending captured task not found' }
+  } else if (name === 'list_proposals') {
+    const limit = args.limit === undefined ? 50 : args.limit
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid proposal limit' } })
+    value = await db.select().from(proposals).where(eq(proposals.userId, user.id)).orderBy(desc(proposals.createdAt)).limit(limit)
+  } else if (name === 'list_newsletters') {
+    const limit = args.limit === undefined ? 30 : args.limit
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid newsletter limit' } })
+    value = await db.select({ id: newsletters.id, title: newsletters.title, contentMd: newsletters.contentMd, createdAt: newsletters.createdAt, sentAt: newsletters.sentAt }).from(newsletters).where(eq(newsletters.userId, user.id)).orderBy(desc(newsletters.createdAt)).limit(limit)
+  } else if (name === 'list_purchases') {
+    const limit = args.limit === undefined ? 50 : args.limit
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid purchase limit' } })
+    value = await db.select({ id: amazonPurchases.id, receivedAt: amazonPurchases.receivedAt, sender: amazonPurchases.sender, subject: amazonPurchases.subject, invoiceId: amazonPurchases.invoiceId, items: amazonPurchases.items, totalAmount: amazonPurchases.totalAmount, currency: amazonPurchases.currency }).from(amazonPurchases).where(eq(amazonPurchases.userId, user.id)).orderBy(desc(amazonPurchases.receivedAt)).limit(limit)
+  } else if (name === 'get_app_preferences') {
+    const [row] = await db.select({ timezone: settings.timezone, newsletterDay: settings.newsletterDay, newsletterHour: settings.newsletterHour, notifyEmail: settings.notifyEmail, quietStart: settings.quietStart, quietEnd: settings.quietEnd, housekeepingEnabled: settings.housekeepingEnabled, researchAuto: settings.researchAuto, ambientEnabled: settings.ambientEnabled, ambientEmailApproval: settings.ambientEmailApproval }).from(settings).where(eq(settings.userId, user.id)).limit(1)
+    value = row ?? { timezone: 'UTC', newsletterDay: 1, newsletterHour: 8, notifyEmail: true, quietStart: 22, quietEnd: 7, housekeepingEnabled: true, researchAuto: true, ambientEnabled: true, ambientEmailApproval: true }
+  } else if (name === 'update_app_preferences') {
+    const fields = ['timezone', 'newsletterDay', 'newsletterHour', 'notifyEmail', 'quietStart', 'quietEnd', 'housekeepingEnabled', 'researchAuto', 'ambientEnabled', 'ambientEmailApproval']
+    if (!fields.some((field) => args[field] !== undefined) || Object.keys(args).some((field) => !fields.includes(field))) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Provide supported preference fields only' } })
+    if ((args.timezone !== undefined && !isValidTimezone(args.timezone)) || (args.newsletterDay !== undefined && (!Number.isSafeInteger(args.newsletterDay) || args.newsletterDay < 0 || args.newsletterDay > 6)) || (args.newsletterHour !== undefined && (!Number.isSafeInteger(args.newsletterHour) || args.newsletterHour < 0 || args.newsletterHour > 23)) || (args.quietStart !== undefined && (!Number.isSafeInteger(args.quietStart) || args.quietStart < 0 || args.quietStart > 23)) || (args.quietEnd !== undefined && (!Number.isSafeInteger(args.quietEnd) || args.quietEnd < 0 || args.quietEnd > 23)) || ['notifyEmail', 'housekeepingEnabled', 'researchAuto', 'ambientEnabled', 'ambientEmailApproval'].some((field) => args[field] !== undefined && typeof args[field] !== 'boolean')) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid preference values' } })
+    const patch: Record<string, unknown> = Object.fromEntries(fields.filter((field) => args[field] !== undefined).map((field) => [field, args[field]]))
+    value = await db.insert(settings).values({ userId: user.id, ...patch }).onConflictDoUpdate({ target: settings.userId, set: { ...patch, updatedAt: new Date() } }).returning({ userId: settings.userId })
+    value = { updated: true }
+  } else if (name === 'list_recordings') {
+    const limit = args.limit === undefined ? 50 : args.limit
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid recording limit' } })
+    value = await db.select({ id: recordings.id, room: recordings.room, durationMs: recordings.durationMs, bytes: recordings.bytes, status: recordings.status, transcript: recordings.transcript, createdAt: recordings.createdAt, processedAt: recordings.processedAt }).from(recordings).where(eq(recordings.userId, user.id)).orderBy(desc(recordings.createdAt)).limit(limit)
   } else return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Unknown tool' } })
 
   const response = NextResponse.json({ jsonrpc: '2.0', id: body.id, result: result(value) })
