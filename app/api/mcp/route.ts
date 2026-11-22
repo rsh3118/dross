@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server'
 import { randomUUID } from 'node:crypto'
 import { and, desc, eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { tasks, wikiPages } from '@/lib/db/schema'
+import { tasks, wikiPages, type WikiStatus } from '@/lib/db/schema'
 import { requireApiUser } from '@/lib/api-auth'
+import { createWikiPage, updateWikiPage } from '@/lib/wiki'
 
 const tools = [
   { name: 'get_database_schema', description: 'Inspect the Dross database tables and columns.', inputSchema: { type: 'object', properties: {} } },
@@ -11,6 +12,8 @@ const tools = [
   { name: 'create_task', description: 'Create a task. Urgency is top, today, week, or backlog and defaults to top.', inputSchema: { type: 'object', required: ['title'], properties: { title: { type: 'string' }, urgency: { type: 'string', enum: ['top', 'today', 'week', 'backlog'] } } } },
   { name: 'update_task', description: 'Update a task title or urgency.', inputSchema: { type: 'object', required: ['id'], properties: { id: { type: 'number' }, title: { type: 'string' }, urgency: { type: 'string', enum: ['top', 'today', 'week', 'backlog'] } } } },
   { name: 'list_wiki_pages', description: 'List wiki pages belonging to the authenticated Dross user.', inputSchema: { type: 'object', properties: {} } },
+  { name: 'create_wiki_page', description: 'Create a wiki page for the authenticated Dross user.', inputSchema: { type: 'object', required: ['title', 'content'], properties: { title: { type: 'string', maxLength: 200 }, content: { type: 'string', maxLength: 100000 }, summary: { type: 'string', maxLength: 2000 }, tags: { type: 'array', items: { type: 'string', maxLength: 80 }, maxItems: 30 }, status: { type: 'string', enum: ['draft', 'published'] } } } },
+  { name: 'update_wiki_page', description: 'Update an existing wiki page belonging to the authenticated Dross user.', inputSchema: { type: 'object', required: ['id'], properties: { id: { type: 'integer', minimum: 1 }, title: { type: 'string', maxLength: 200 }, content: { type: 'string', maxLength: 100000 }, summary: { anyOf: [{ type: 'string', maxLength: 2000 }, { type: 'null' }] }, tags: { type: 'array', items: { type: 'string', maxLength: 80 }, maxItems: 30 }, status: { type: 'string', enum: ['draft', 'published'] } } } },
 ]
 
 const schema = {
@@ -20,6 +23,10 @@ const schema = {
 
 function result(value: unknown) {
   return { content: [{ type: 'text', text: JSON.stringify(value) }] }
+}
+
+function isValidTags(value: unknown): value is string[] {
+  return Array.isArray(value) && value.length <= 30 && value.every((tag) => typeof tag === 'string' && tag.trim().length > 0 && tag.length <= 80)
 }
 
 export async function OPTIONS() {
@@ -56,7 +63,7 @@ export async function POST(request: Request) {
 
   const name = body.params?.name
   const args = body.params?.arguments ?? {}
-  const requiredScope = name === 'get_database_schema' ? 'mcp:schema' : ['list_tasks', 'list_wiki_pages'].includes(name) ? 'mcp:read' : ['create_task', 'update_task'].includes(name) ? 'mcp:write' : null
+  const requiredScope = name === 'get_database_schema' ? 'mcp:schema' : ['list_tasks', 'list_wiki_pages'].includes(name) ? 'mcp:read' : ['create_task', 'update_task', 'create_wiki_page', 'update_wiki_page'].includes(name) ? 'mcp:write' : null
   if (!requiredScope) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Unknown tool' } })
 
   let user: { id: string }
@@ -84,7 +91,17 @@ export async function POST(request: Request) {
     const [task] = await db.update(tasks).set({ ...(args.title !== undefined ? { title: String(args.title) } : {}), ...(urgency ? { urgency, topItem: urgency === 'top', today: urgency === 'today', thisWeek: urgency === 'week' } : {}) }).where(and(eq(tasks.id, Number(args.id)), eq(tasks.userId, user.id))).returning()
     value = task ?? { error: 'Task not found' }
   } else if (name === 'list_wiki_pages') value = await db.select().from(wikiPages).where(eq(wikiPages.userId, user.id))
-  else return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Unknown tool' } })
+  else if (name === 'create_wiki_page') {
+    if (typeof args.title !== 'string' || !args.title.trim() || args.title.length > 200 || typeof args.content !== 'string' || args.content.length > 100000 || (args.summary !== undefined && (typeof args.summary !== 'string' || args.summary.length > 2000)) || (args.tags !== undefined && !isValidTags(args.tags)) || (args.status !== undefined && args.status !== 'draft' && args.status !== 'published')) {
+      return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid wiki page fields' } })
+    }
+    value = await createWikiPage({ userId: user.id, title: args.title.trim(), content: args.content, summary: args.summary, tags: args.tags, status: args.status as WikiStatus | undefined, authoredBy: 'user' })
+  } else if (name === 'update_wiki_page') {
+    if (!Number.isSafeInteger(args.id) || args.id < 1 || (args.title !== undefined && (typeof args.title !== 'string' || !args.title.trim() || args.title.length > 200)) || (args.content !== undefined && (typeof args.content !== 'string' || args.content.length > 100000)) || (args.summary !== undefined && args.summary !== null && (typeof args.summary !== 'string' || args.summary.length > 2000)) || (args.tags !== undefined && !isValidTags(args.tags)) || (args.status !== undefined && args.status !== 'draft' && args.status !== 'published') || !['title', 'content', 'summary', 'tags', 'status'].some((field) => args[field] !== undefined)) {
+      return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid wiki page fields' } })
+    }
+    value = await updateWikiPage({ userId: user.id, id: args.id, title: args.title?.trim(), content: args.content, summary: args.summary, tags: args.tags, status: args.status as WikiStatus | undefined, authoredBy: 'user' })
+  } else return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Unknown tool' } })
 
   const response = NextResponse.json({ jsonrpc: '2.0', id: body.id, result: result(value) })
   const sessionId = request.headers.get('Mcp-Session-Id')
