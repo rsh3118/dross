@@ -169,9 +169,9 @@ export function TaskSubtasks({ taskId }: { taskId: number }) {
       ) : error ? (
         <p className="text-xs text-destructive" role="alert">Could not load this task&apos;s to-dos.</p>
       ) : (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+        <div className="flex flex-col gap-3">
           {renderLane('critical')}
-          <div className="hidden self-stretch border-l sm:block" aria-hidden />
+          <div className="border-t" aria-hidden />
           {renderLane('full')}
         </div>
       )}
