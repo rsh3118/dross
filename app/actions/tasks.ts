@@ -8,8 +8,10 @@ import { db } from '@/lib/db'
 import {
   boulders,
   taskComments,
+  taskSubtasks,
   tasks,
   type Recurrence,
+  type TaskSubtaskLane,
   type TaskCategory,
   type TaskGroup,
   type TaskPriority,
@@ -197,6 +199,125 @@ export async function setTaskStatus(id: number, status: TaskStatus) {
   return row
 }
 
+const subtaskCreateInput = z.object({
+  taskId: z.number().int().positive(),
+  title: z.string().trim().min(1).max(200),
+  lane: z.enum(['critical', 'full']).default('full'),
+})
+
+const subtaskUpdateInput = z.object({
+  title: z.string().trim().min(1).max(200).optional(),
+  lane: z.enum(['critical', 'full']).optional(),
+})
+
+export async function listTaskSubtasks(taskId: number) {
+  const userId = await getUserId()
+  const validTaskId = z.number().int().positive().parse(taskId)
+  const [task] = await db
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(and(eq(tasks.id, validTaskId), eq(tasks.userId, userId)))
+  if (!task) throw new Error('Task not found')
+
+  return db
+    .select()
+    .from(taskSubtasks)
+    .where(and(eq(taskSubtasks.taskId, validTaskId), eq(taskSubtasks.userId, userId)))
+    .orderBy(asc(taskSubtasks.sortOrder), asc(taskSubtasks.id))
+}
+
+export async function createTaskSubtask(raw: z.input<typeof subtaskCreateInput>) {
+  const userId = await getUserId()
+  const data = subtaskCreateInput.parse(raw)
+  const [task] = await db
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(and(eq(tasks.id, data.taskId), eq(tasks.userId, userId)))
+  if (!task) throw new Error('Task not found')
+
+  const [position] = await db
+    .select({ next: sql<number>`coalesce(max(${taskSubtasks.sortOrder}), -1) + 1` })
+    .from(taskSubtasks)
+    .where(
+      and(
+        eq(taskSubtasks.taskId, data.taskId),
+        eq(taskSubtasks.userId, userId),
+        eq(taskSubtasks.lane, data.lane),
+      ),
+    )
+  const [row] = await db
+    .insert(taskSubtasks)
+    .values({
+      userId,
+      taskId: data.taskId,
+      title: data.title,
+      lane: data.lane,
+      sortOrder: position?.next ?? 0,
+    })
+    .returning()
+  revalidateTaskViews()
+  return row
+}
+
+export async function updateTaskSubtask(id: number, raw: unknown) {
+  const userId = await getUserId()
+  const validId = z.number().int().positive().parse(id)
+  const data = subtaskUpdateInput.parse(raw)
+  const [row] = await db
+    .update(taskSubtasks)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(taskSubtasks.id, validId), eq(taskSubtasks.userId, userId)))
+    .returning()
+  if (!row) throw new Error('Subtask not found')
+  revalidateTaskViews()
+  return row
+}
+
+export async function setTaskSubtaskCompleted(id: number, completed: boolean) {
+  const userId = await getUserId()
+  const validId = z.number().int().positive().parse(id)
+  const desired = z.boolean().parse(completed)
+  const [subtask] = await db
+    .select()
+    .from(taskSubtasks)
+    .where(and(eq(taskSubtasks.id, validId), eq(taskSubtasks.userId, userId)))
+  if (!subtask) throw new Error('Subtask not found')
+  if (subtask.completed === desired) return subtask
+
+  const [task] = await db
+    .select({ recurrence: tasks.recurrence })
+    .from(tasks)
+    .where(and(eq(tasks.id, subtask.taskId), eq(tasks.userId, userId)))
+  if (!task) throw new Error('Task not found')
+
+  const recurringHabit = isHabit(task.recurrence)
+  const period = recurringHabit ? periodKeyFor(task.recurrence) : null
+  const shieldPatch = desired
+    ? habitOnComplete(subtask)
+    : habitOnUncomplete(subtask)
+  const [row] = await db
+    .update(taskSubtasks)
+    .set({
+      completed: desired,
+      ...shieldPatch,
+      lastCompletedPeriodKey: desired ? period : null,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(taskSubtasks.id, validId), eq(taskSubtasks.userId, userId)))
+    .returning()
+  revalidateTaskViews()
+  return row
+}
+
+export async function deleteTaskSubtask(id: number) {
+  const userId = await getUserId()
+  const validId = z.number().int().positive().parse(id)
+  await db
+    .delete(taskSubtasks)
+    .where(and(eq(taskSubtasks.id, validId), eq(taskSubtasks.userId, userId)))
+  revalidateTaskViews()
+}
+
 export async function toggleToday(id: number, today: boolean) {
   return updateTask(id, { today })
 }
@@ -249,6 +370,9 @@ export async function deleteTask(id: number) {
   await db
     .delete(taskComments)
     .where(and(eq(taskComments.taskId, id), eq(taskComments.userId, userId)))
+  await db
+    .delete(taskSubtasks)
+    .where(and(eq(taskSubtasks.taskId, id), eq(taskSubtasks.userId, userId)))
   await db.delete(tasks).where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
   revalidateTaskViews()
 }

@@ -192,6 +192,36 @@ export const taskComments = pgTable(
   }),
 )
 
+export type TaskSubtaskLane = 'critical' | 'full'
+
+export const taskSubtasks = pgTable(
+  'task_subtasks',
+  {
+    id: serial('id').primaryKey(),
+    userId: text('userId').notNull(),
+    taskId: integer('task_id').notNull(),
+    title: text('title').notNull(),
+    lane: text('lane').$type<TaskSubtaskLane>().notNull().default('full'),
+    completed: boolean('completed').notNull().default(false),
+    habitCount: integer('habit_count').notNull().default(0),
+    habitTier: integer('habit_tier').notNull().default(0),
+    habitGoldShields: integer('habit_gold_shields').notNull().default(0),
+    lastCompletedPeriodKey: text('last_completed_period_key'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userTaskLaneOrderIdx: index('task_subtasks_user_task_lane_order_idx').on(
+      table.userId,
+      table.taskId,
+      table.lane,
+      table.sortOrder,
+      table.id,
+    ),
+  }),
+)
+
 // Mountains = long-range objectives (Notion "Mountains ⛰️" / 2026 Goals).
 export type StructureStatus = 'active' | 'done' | 'someday'
 export type MountainArea =
@@ -538,6 +568,7 @@ export type DossierHistoryRecord = typeof dossierHistory.$inferSelect
 export type DossierReflection = typeof dossierReflections.$inferSelect
 
 export type Task = typeof tasks.$inferSelect
+export type TaskSubtask = typeof taskSubtasks.$inferSelect
 export type Mountain = typeof mountains.$inferSelect
 export type Boulder = typeof boulders.$inferSelect
 export type WikiPage = typeof wikiPages.$inferSelect

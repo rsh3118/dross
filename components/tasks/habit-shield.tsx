@@ -11,12 +11,14 @@ export function HabitShield({
   count,
   goldShields,
   size = 'sm',
+  label = 'habit',
   className,
 }: {
   tier: number
   count: number
   goldShields: number
   size?: 'sm' | 'md'
+  label?: string
   className?: string
 }) {
   const shield = shieldForTier(tier)
@@ -28,10 +30,10 @@ export function HabitShield({
   return (
     <span
       className={cn('relative inline-flex shrink-0 items-center', className)}
-      title={`${shield.name} shield · ${count} completed${
+      title={`${shield.name} ${label} shield · ${count} completed${
         goldShields > 0 ? ` · ${goldShields} gold banked` : ''
       }`}
-      aria-label={`${shield.name} habit shield, ${count} completions`}
+      aria-label={`${shield.name} ${label} shield, ${count} completions`}
     >
       <span className="relative inline-flex items-center justify-center">
         <Shield

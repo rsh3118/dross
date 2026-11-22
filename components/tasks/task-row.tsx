@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import { format } from 'date-fns'
-import { FlaskConical, PanelRightOpen, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, FlaskConical, PanelRightOpen, Trash2 } from 'lucide-react'
 import type {
   Task,
   TaskCategory,
@@ -28,6 +28,7 @@ import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { HabitShield } from '@/components/tasks/habit-shield'
+import { TaskSubtasks } from '@/components/tasks/task-subtasks'
 import { ColorDot, urgencyClass } from '@/components/tasks/task-visuals'
 
 type Option = { id: number; title: string }
@@ -60,6 +61,7 @@ export function TaskRow({
 } & RowHandlers) {
   const [pending, startTransition] = useTransition()
   const [title, setTitle] = useState(task.title)
+  const [subtasksOpen, setSubtasksOpen] = useState(false)
 
   // Re-sync the local title when the server sends a fresh task after revalidate.
   useEffect(() => {
@@ -182,6 +184,17 @@ export function TaskRow({
             {habit && <HabitShield tier={task.habitTier} count={task.habitCount} goldShields={task.habitGoldShields} />}
             {task.isResearch && <FlaskConical className="size-3.5 shrink-0 text-primary" aria-label="Research task" />}
             {habit && <span title="Habit" aria-label="Habit" className="ml-auto inline-flex size-5 shrink-0 items-center justify-center rounded border border-primary/40 font-mono text-[10px] font-semibold text-primary">H</span>}
+            <button
+              type="button"
+              aria-expanded={subtasksOpen}
+              aria-controls={`task-subtasks-${task.id}`}
+              onClick={() => setSubtasksOpen((open) => !open)}
+              onDoubleClick={(event) => event.stopPropagation()}
+              className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+            >
+              {subtasksOpen ? <ChevronDown className="size-3.5" aria-hidden /> : <ChevronRight className="size-3.5" aria-hidden />}
+              Subtasks
+            </button>
           </div>
 
           <div
@@ -307,6 +320,7 @@ export function TaskRow({
             )}
           />
         </div>
+        {subtasksOpen && <TaskSubtasks taskId={task.id} />}
       </div>
     </div>
   )
