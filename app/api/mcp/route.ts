@@ -67,7 +67,7 @@ export async function POST(request: Request) {
       return new Response('Unauthorized', { status: 401, headers: { 'www-authenticate': 'Bearer resource_metadata="https://www.dross.quest/.well-known/oauth-protected-resource", scope="mcp:read mcp:write mcp:schema"' } })
     }
     if (error instanceof Response && error.status === 403) {
-      return new Response('Forbidden', { status: 403, headers: { 'www-authenticate': `Bearer error="insufficient_scope", scope="${requiredScope}"` } })
+      return new Response('Forbidden', { status: 403, headers: { 'www-authenticate': 'Bearer error="insufficient_scope", scope="mcp:read mcp:write mcp:schema"' } })
     }
     throw error
   }
