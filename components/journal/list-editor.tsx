@@ -14,13 +14,25 @@ const DOT: Record<Tone, string> = {
   negative: 'bg-destructive',
 }
 
+type Surface = 3 | 4 | 5 | 6 | 7
+
+const SURFACE: Record<Surface, string> = {
+  3: 'bg-journal-3',
+  4: 'bg-journal-4',
+  5: 'bg-journal-5',
+  6: 'bg-journal-6',
+  7: 'bg-journal-7',
+}
+
 export function ListEditor({
+  surface = 4,
   title,
   items,
   onChange,
   placeholder,
   tone = 'neutral',
 }: {
+  surface?: Surface
   title: string
   items: string[]
   onChange: (next: string[]) => void
@@ -39,7 +51,7 @@ export function ListEditor({
   const remove = (index: number) => onChange(items.filter((_, i) => i !== index))
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className={cn('flex flex-col gap-2 rounded-md border border-primary/15 p-3', SURFACE[surface])}>
       <h4 className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
         {title}
       </h4>
@@ -49,7 +61,7 @@ export function ListEditor({
           {items.map((entry, i) => (
             <li
               key={i}
-              className="group flex items-start gap-2.5 rounded-md border bg-card px-3 py-2 text-sm"
+              className="group flex items-start gap-2.5 rounded-md border border-primary/20 bg-journal-7 px-3 py-2 text-sm"
             >
               <span className={cn('mt-1.5 size-1.5 shrink-0 rounded-full', DOT[tone])} aria-hidden />
               <span className="flex-1 text-pretty leading-relaxed">{entry}</span>

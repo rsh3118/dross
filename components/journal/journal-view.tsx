@@ -270,7 +270,7 @@ function EditorShell({
   children: React.ReactNode
 }) {
   return (
-    <div className="dross-sheen flex flex-col gap-6 rounded-lg border bg-card p-4 md:p-6">
+    <div className="flex flex-col gap-6 rounded-lg border border-primary/20 bg-journal-1 p-4 md:p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1 min-w-0">
           <span className="font-mono text-[10px] uppercase tracking-widest text-primary">
@@ -325,23 +325,23 @@ function DailyEditor({ entry }: { entry: JournalEntry }) {
         </div>
       )}
     >
-      <section aria-labelledby={`feelings-${entry.id}`} className="flex flex-col gap-5 rounded-md border bg-muted/20 p-4 md:p-5">
+      <section aria-labelledby={`feelings-${entry.id}`} className="flex flex-col gap-5 rounded-md border border-primary/15 bg-journal-2 p-4 md:p-5">
         <h3 id={`feelings-${entry.id}`} className="font-mono text-xs uppercase tracking-widest text-primary">Feelings &amp; the day</h3>
-        <ListEditor title="Big feelings today" items={body.feelings} onChange={(next) => updateList('feelings', next)} placeholder="Name a feeling…" />
+        <ListEditor surface={3} title="Big feelings today" items={body.feelings} onChange={(next) => updateList('feelings', next)} placeholder="Name a feeling…" />
         <div className="flex flex-col gap-2">
           <label htmlFor={`day-${entry.id}`} className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">How did the day go?</label>
           <Input id={`day-${entry.id}`} value={summary} onChange={(e) => setSummary(e.target.value)} onBlur={() => { if (summary !== (entry.summary ?? '')) persist({ summary }) }} placeholder="One line on the day overall…" />
         </div>
-        <ListEditor title="What went well" items={body.wentWell} onChange={(next) => updateList('wentWell', next)} placeholder="A win, big or small…" tone="positive" />
-        <ListEditor title="What didn’t go well" items={body.wentPoorly} onChange={(next) => updateList('wentPoorly', next)} placeholder="A snag or regret…" tone="negative" />
+        <ListEditor surface={4} title="What went well" items={body.wentWell} onChange={(next) => updateList('wentWell', next)} placeholder="A win, big or small…" tone="positive" />
+        <ListEditor surface={5} title="What didn’t go well" items={body.wentPoorly} onChange={(next) => updateList('wentPoorly', next)} placeholder="A snag or regret…" tone="negative" />
       </section>
 
-      <section aria-labelledby={`lessons-${entry.id}`} className="flex flex-col gap-5 rounded-md border bg-muted/20 p-4 md:p-5">
+      <section aria-labelledby={`lessons-${entry.id}`} className="flex flex-col gap-5 rounded-md border border-primary/20 bg-journal-3 p-4 md:p-5">
         <h3 id={`lessons-${entry.id}`} className="font-mono text-xs uppercase tracking-widest text-primary">Lessons</h3>
         <div className="flex flex-col gap-6">
-          <ListEditor title="Short term" items={body.lessonsShort} onChange={(next) => updateList('lessonsShort', next)} placeholder="For this week…" />
-          <ListEditor title="Medium term" items={body.lessonsMedium} onChange={(next) => updateList('lessonsMedium', next)} placeholder="For this season…" />
-          <ListEditor title="Long term" items={body.lessonsLong} onChange={(next) => updateList('lessonsLong', next)} placeholder="For life…" />
+          <ListEditor surface={4} title="Short term" items={body.lessonsShort} onChange={(next) => updateList('lessonsShort', next)} placeholder="For this week…" />
+          <ListEditor surface={5} title="Medium term" items={body.lessonsMedium} onChange={(next) => updateList('lessonsMedium', next)} placeholder="For this season…" />
+          <ListEditor surface={6} title="Long term" items={body.lessonsLong} onChange={(next) => updateList('lessonsLong', next)} placeholder="For life…" />
         </div>
       </section>
 
@@ -406,14 +406,14 @@ function RelationshipEditor({ entry }: { entry: JournalEntry }) {
         </div>
       )}
     >
-      <section aria-label="Relationship reflection" className="flex flex-col gap-5 rounded-md border bg-muted/20 p-4 md:p-5">
-        <ListEditor title="What went well" items={body.wentWell} onChange={(next) => updateList('wentWell', next)} placeholder="A good moment…" tone="positive" />
-        <ListEditor title="What went bad" items={body.wentBad} onChange={(next) => updateList('wentBad', next)} placeholder="A hard moment…" tone="negative" />
-        <ListEditor title="What I did well" items={body.didWell} onChange={(next) => updateList('didWell', next)} placeholder="Something I handled right…" tone="positive" />
-        <ListEditor title="What I can accept about her" items={body.canAccept} onChange={(next) => updateList('canAccept', next)} placeholder="Something to make peace with…" tone="positive" />
-        <ListEditor title="What I can't accept about her" items={body.cannotAccept} onChange={(next) => updateList('cannotAccept', next)} placeholder="A real boundary or dealbreaker…" tone="negative" />
-        <ListEditor title="What I can improve" items={body.canImprove} onChange={(next) => updateList('canImprove', next)} placeholder="Something on me to work on…" />
-        <ListEditor title="What did I learn" items={body.learned} onChange={(next) => updateList('learned', next)} placeholder="An insight to carry forward…" />
+      <section aria-label="Relationship reflection" className="flex flex-col gap-5 rounded-md border border-primary/20 bg-journal-2 p-4 md:p-5">
+        <ListEditor surface={3} title="What went well" items={body.wentWell} onChange={(next) => updateList('wentWell', next)} placeholder="A good moment…" tone="positive" />
+        <ListEditor surface={4} title="What went bad" items={body.wentBad} onChange={(next) => updateList('wentBad', next)} placeholder="A hard moment…" tone="negative" />
+        <ListEditor surface={5} title="What I did well" items={body.didWell} onChange={(next) => updateList('didWell', next)} placeholder="Something I handled right…" tone="positive" />
+        <ListEditor surface={6} title="What I can accept about her" items={body.canAccept} onChange={(next) => updateList('canAccept', next)} placeholder="Something to make peace with…" tone="positive" />
+        <ListEditor surface={7} title="What I can't accept about her" items={body.cannotAccept} onChange={(next) => updateList('cannotAccept', next)} placeholder="A real boundary or dealbreaker…" tone="negative" />
+        <ListEditor surface={4} title="What I can improve" items={body.canImprove} onChange={(next) => updateList('canImprove', next)} placeholder="Something on me to work on…" />
+        <ListEditor surface={5} title="What did I learn" items={body.learned} onChange={(next) => updateList('learned', next)} placeholder="An insight to carry forward…" />
       </section>
 
       <TrackingEditors
