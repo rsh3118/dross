@@ -12,6 +12,8 @@ const SECTION_LABELS: Record<string, string> = {
   cannotAccept: "What I can't accept about her",
   canImprove: 'What I can improve',
   learned: 'What did I learn',
+  interactions: 'Interactions',
+  timeSpent: 'Time spent',
   details: 'Details',
 }
 
@@ -26,9 +28,18 @@ const humanize = (key: string) =>
 function formatSection(key: string, value: unknown): string | null {
   const label = SECTION_LABELS[key] ?? humanize(key)
   if (Array.isArray(value)) {
-    const items = value.map((v) => String(v).trim()).filter(Boolean)
+    const items = value
+      .map((item) => {
+        if (item && typeof item === 'object' && !Array.isArray(item)) {
+          return Object.entries(item)
+            .map(([key, detail]) => `    ${humanize(key)}: ${String(detail ?? '')}`)
+            .join('\n')
+        }
+        return `  - ${String(item).trim()}`
+      })
+      .filter(Boolean)
     if (items.length === 0) return null
-    return `${label}:\n${items.map((i) => `  - ${i}`).join('\n')}`
+    return `${label}:\n${items.join('\n')}`
   }
   if (typeof value === 'string') {
     const text = value.trim()

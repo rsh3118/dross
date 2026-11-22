@@ -8,6 +8,26 @@ import { requireApiUser } from '@/lib/api-auth'
 import { createWikiPage, updateWikiPage } from '@/lib/wiki'
 import { emptyBodyFor } from '@/lib/journal'
 
+const interactionRecordSchema = {
+  type: 'object',
+  required: ['person', 'interaction', 'feelings'],
+  properties: {
+    person: { type: 'string', maxLength: 500 },
+    interaction: { type: 'string', maxLength: 500 },
+    feelings: { type: 'string', maxLength: 500 },
+  },
+}
+const timeSpentRecordSchema = {
+  type: 'object',
+  required: ['activity', 'minutes', 'feelings', 'notes'],
+  properties: {
+    activity: { type: 'string', maxLength: 500 },
+    minutes: { type: ['integer', 'null'], minimum: 1, maximum: 100000 },
+    feelings: { type: 'string', maxLength: 500 },
+    notes: { type: 'string', maxLength: 8000 },
+  },
+}
+
 const tools = [
   { name: 'get_database_schema', description: 'Inspect the Dross database tables and columns.', inputSchema: { type: 'object', properties: {} } },
   { name: 'list_tasks', description: 'List tasks belonging to the authenticated Dross user.', inputSchema: { type: 'object', properties: { limit: { type: 'number' } } } },
@@ -18,8 +38,8 @@ const tools = [
   { name: 'list_wiki_pages', description: 'List active wiki pages, including their content, belonging to the authenticated Dross user.', inputSchema: { type: 'object', properties: {} } },
   { name: 'get_wiki_page', description: 'Read one active wiki page by ID or slug for the authenticated Dross user.', inputSchema: { type: 'object', properties: { id: { type: 'integer', minimum: 1 }, slug: { type: 'string', minLength: 1, maxLength: 200 } }, anyOf: [{ required: ['id'] }, { required: ['slug'] }] } },
   { name: 'list_journal_entries', description: 'Read active journal entries belonging to the authenticated Dross user.', inputSchema: { type: 'object', properties: { type: { type: 'string', enum: ['daily', 'relationship'] }, limit: { type: 'integer', minimum: 1, maximum: 100 } } } },
-  { name: 'create_journal_entry', description: 'Create a daily or relationship journal entry for the authenticated Dross user.', inputSchema: { type: 'object', required: ['type'], properties: { type: { type: 'string', enum: ['daily', 'relationship'] }, title: { type: 'string', maxLength: 200 }, summary: { type: 'string', maxLength: 4000 }, body: { type: 'object', properties: { feelings: { type: 'array', items: { type: 'string' } }, wentWell: { type: 'array', items: { type: 'string' } }, wentPoorly: { type: 'array', items: { type: 'string' } }, lessonsShort: { type: 'array', items: { type: 'string' } }, lessonsMedium: { type: 'array', items: { type: 'string' } }, lessonsLong: { type: 'array', items: { type: 'string' } }, wentBad: { type: 'array', items: { type: 'string' } }, canAccept: { type: 'array', items: { type: 'string' } }, cannotAccept: { type: 'array', items: { type: 'string' } }, canImprove: { type: 'array', items: { type: 'string' } }, didWell: { type: 'array', items: { type: 'string' } }, learned: { type: 'array', items: { type: 'string' } }, details: { type: 'string' } } }, entryDate: { type: 'string', format: 'date-time' } } } },
-  { name: 'update_journal_entry', description: 'Update a journal entry belonging to the authenticated Dross user.', inputSchema: { type: 'object', required: ['id'], properties: { id: { type: 'integer', minimum: 1 }, title: { type: ['string', 'null'], maxLength: 200 }, summary: { type: ['string', 'null'], maxLength: 4000 }, body: { type: 'object', properties: { feelings: { type: 'array', items: { type: 'string' } }, wentWell: { type: 'array', items: { type: 'string' } }, wentPoorly: { type: 'array', items: { type: 'string' } }, lessonsShort: { type: 'array', items: { type: 'string' } }, lessonsMedium: { type: 'array', items: { type: 'string' } }, lessonsLong: { type: 'array', items: { type: 'string' } }, wentBad: { type: 'array', items: { type: 'string' } }, canAccept: { type: 'array', items: { type: 'string' } }, cannotAccept: { type: 'array', items: { type: 'string' } }, canImprove: { type: 'array', items: { type: 'string' } }, didWell: { type: 'array', items: { type: 'string' } }, learned: { type: 'array', items: { type: 'string' } }, details: { type: 'string' } } }, entryDate: { type: 'string', format: 'date-time' } } } },
+  { name: 'create_journal_entry', description: 'Create a daily or relationship journal entry for the authenticated Dross user.', inputSchema: { type: 'object', required: ['type'], properties: { type: { type: 'string', enum: ['daily', 'relationship'] }, title: { type: 'string', maxLength: 200 }, summary: { type: 'string', maxLength: 4000 }, body: { type: 'object', properties: { feelings: { type: 'array', items: { type: 'string' } }, wentWell: { type: 'array', items: { type: 'string' } }, wentPoorly: { type: 'array', items: { type: 'string' } }, lessonsShort: { type: 'array', items: { type: 'string' } }, lessonsMedium: { type: 'array', items: { type: 'string' } }, lessonsLong: { type: 'array', items: { type: 'string' } }, wentBad: { type: 'array', items: { type: 'string' } }, canAccept: { type: 'array', items: { type: 'string' } }, cannotAccept: { type: 'array', items: { type: 'string' } }, canImprove: { type: 'array', items: { type: 'string' } }, didWell: { type: 'array', items: { type: 'string' } }, learned: { type: 'array', items: { type: 'string' } }, details: { type: 'string' }, interactions: { type: 'array', maxItems: 200, items: interactionRecordSchema }, timeSpent: { type: 'array', maxItems: 200, items: timeSpentRecordSchema } } }, entryDate: { type: 'string', format: 'date-time' } } } },
+  { name: 'update_journal_entry', description: 'Update a journal entry belonging to the authenticated Dross user.', inputSchema: { type: 'object', required: ['id'], properties: { id: { type: 'integer', minimum: 1 }, title: { type: ['string', 'null'], maxLength: 200 }, summary: { type: ['string', 'null'], maxLength: 4000 }, body: { type: 'object', properties: { feelings: { type: 'array', items: { type: 'string' } }, wentWell: { type: 'array', items: { type: 'string' } }, wentPoorly: { type: 'array', items: { type: 'string' } }, lessonsShort: { type: 'array', items: { type: 'string' } }, lessonsMedium: { type: 'array', items: { type: 'string' } }, lessonsLong: { type: 'array', items: { type: 'string' } }, wentBad: { type: 'array', items: { type: 'string' } }, canAccept: { type: 'array', items: { type: 'string' } }, cannotAccept: { type: 'array', items: { type: 'string' } }, canImprove: { type: 'array', items: { type: 'string' } }, didWell: { type: 'array', items: { type: 'string' } }, learned: { type: 'array', items: { type: 'string' } }, details: { type: 'string' }, interactions: { type: 'array', maxItems: 200, items: interactionRecordSchema }, timeSpent: { type: 'array', maxItems: 200, items: timeSpentRecordSchema } } }, entryDate: { type: 'string', format: 'date-time' } } } },
   { name: 'create_wiki_page', description: 'Create a wiki page for the authenticated Dross user.', inputSchema: { type: 'object', required: ['title', 'content'], properties: { title: { type: 'string', maxLength: 200 }, content: { type: 'string', maxLength: 100000 }, summary: { type: 'string', maxLength: 2000 }, tags: { type: 'array', items: { type: 'string', maxLength: 80 }, maxItems: 30 }, status: { type: 'string', enum: ['draft', 'published'] } } } },
   { name: 'update_wiki_page', description: 'Update an existing wiki page belonging to the authenticated Dross user.', inputSchema: { type: 'object', required: ['id'], properties: { id: { type: 'integer', minimum: 1 }, title: { type: 'string', maxLength: 200 }, content: { type: 'string', maxLength: 100000 }, summary: { anyOf: [{ type: 'string', maxLength: 2000 }, { type: 'null' }] }, tags: { type: 'array', items: { type: 'string', maxLength: 80 }, maxItems: 30 }, status: { type: 'string', enum: ['draft', 'published'] } } } },
 ]
@@ -38,6 +58,19 @@ function isValidTags(value: unknown): value is string[] {
 }
 
 const journalListSchema = z.array(z.string().trim().max(500)).max(200)
+const journalTrackingPatchSchema = {
+  interactions: z.array(z.object({
+    person: z.string().trim().max(500),
+    interaction: z.string().trim().max(500),
+    feelings: z.string().trim().max(500),
+  })).max(200).optional(),
+  timeSpent: z.array(z.object({
+    activity: z.string().trim().max(500),
+    minutes: z.number().int().positive().max(100000).nullable(),
+    feelings: z.string().trim().max(500),
+    notes: z.string().trim().max(8000),
+  })).max(200).optional(),
+}
 const dailyJournalPatchSchema = z.object({
   feelings: journalListSchema.optional(),
   wentWell: journalListSchema.optional(),
@@ -45,6 +78,7 @@ const dailyJournalPatchSchema = z.object({
   lessonsShort: journalListSchema.optional(),
   lessonsMedium: journalListSchema.optional(),
   lessonsLong: journalListSchema.optional(),
+  ...journalTrackingPatchSchema,
 }).strip()
 const relationshipJournalPatchSchema = z.object({
   wentWell: journalListSchema.optional(),
@@ -55,6 +89,7 @@ const relationshipJournalPatchSchema = z.object({
   didWell: journalListSchema.optional(),
   learned: journalListSchema.optional(),
   details: z.string().trim().max(8000).optional(),
+  ...journalTrackingPatchSchema,
 }).strip()
 
 function parseJournalBody(type: JournalType, value: unknown): JournalBody | null {

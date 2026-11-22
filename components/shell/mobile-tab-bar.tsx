@@ -8,6 +8,7 @@ import {
   BookOpen,
   Bot,
   CheckSquare,
+  ContactRound,
   Ear,
   GitPullRequest,
   LayoutGrid,
@@ -32,6 +33,7 @@ const PRIMARY = [
 const SECONDARY = [
   { href: '/capture', label: 'Capture', icon: Ear, badgeKey: 'captured' as const },
   { href: '/journal', label: 'Journal', icon: NotebookPen, badgeKey: null },
+  { href: '/dosier', label: 'Dosier', icon: ContactRound, badgeKey: null },
   { href: '/wiki', label: 'Wiki', icon: BookOpen, badgeKey: null },
   { href: '/proposals', label: 'Proposals', icon: GitPullRequest, badgeKey: 'proposals' as const },
   { href: '/newsletter', label: 'Newsletter', icon: Mail, badgeKey: null },
