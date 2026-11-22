@@ -1,7 +1,7 @@
 import { and, eq, isNull, ne, or, sql } from 'drizzle-orm'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { settings, tasks, user } from '@/lib/db/schema'
+import { settings, taskSubtasks, tasks, user } from '@/lib/db/schema'
 import { HABIT_TZ, habitOnMiss, isHabit, periodKeyFor } from '@/lib/tasks'
 import { processAmbient } from '@/lib/ambient-process'
 import {
@@ -133,7 +133,36 @@ export async function GET(req: Request, ctx: { params: Promise<{ agent: string }
           if (t.recurrence === 'weeks') patch.thisWeek = true
         }
 
-        await db.update(tasks).set(patch).where(eq(tasks.id, t.id))
+        const children = await db
+          .select()
+          .from(taskSubtasks)
+          .where(and(eq(taskSubtasks.userId, t.userId), eq(taskSubtasks.taskId, t.id)))
+
+        for (const child of children) {
+          const childCompletedPrev =
+            child.lastCompletedPeriodKey != null &&
+            child.lastCompletedPeriodKey === t.lastPeriodKey
+          const childPatch: Record<string, unknown> = {
+            completed: false,
+            lastCompletedPeriodKey: null,
+            updatedAt: new Date(),
+          }
+          if (isHabit(t.recurrence) && !childCompletedPrev && child.habitTier > 0) {
+            Object.assign(childPatch, habitOnMiss({ habitTier: child.habitTier }))
+          }
+          await db
+            .update(taskSubtasks)
+            .set(childPatch)
+            .where(
+              and(
+                eq(taskSubtasks.id, child.id),
+                eq(taskSubtasks.userId, t.userId),
+                eq(taskSubtasks.taskId, t.id),
+              ),
+            )
+        }
+
+        await db.update(tasks).set(patch).where(and(eq(tasks.id, t.id), eq(tasks.userId, t.userId)))
         reopened += 1
       }
 
