@@ -480,7 +480,15 @@ export type DailyJournalBody = JournalTrackingBody & {
 }
 
 export type BoojibooJournalBody = {
+  wentWell: string[]
+  wentBad: string[]
+  canAccept: string[]
+  cannotAccept: string[]
+  canImprove: string[]
+  didWell: string[]
+  learned: string[]
   appreciations: string[]
+  details: string
 }
 
 export type JournalBody = DailyJournalBody | BoojibooJournalBody

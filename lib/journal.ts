@@ -19,7 +19,15 @@ export const emptyDailyBody = (): DailyJournalBody => ({
 })
 
 export const emptyRelationshipBody = (): BoojibooJournalBody => ({
+  wentWell: [],
+  wentBad: [],
+  canAccept: [],
+  cannotAccept: [],
+  canImprove: [],
+  didWell: [],
+  learned: [],
   appreciations: [],
+  details: '',
 })
 
 export const emptyBodyFor = (type: JournalType) =>

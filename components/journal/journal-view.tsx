@@ -360,8 +360,8 @@ function RelationshipEditor({ entry }: { entry: JournalEntry }) {
   const [body, setBody] = useState<BoojibooJournalBody>({ ...emptyRelationshipBody(), ...initial })
   const [, startTransition] = useTransition()
 
-  const updateAppreciations = (appreciations: string[]) => {
-    const nextBody = { appreciations }
+  const updateList = (key: keyof BoojibooJournalBody, next: string[]) => {
+    const nextBody = { ...body, [key]: next }
     setBody(nextBody)
     startTransition(async () => {
       await saveJournalEntry(entry.id, { body: nextBody })
@@ -379,12 +379,19 @@ function RelationshipEditor({ entry }: { entry: JournalEntry }) {
         </div>
       )}
     >
-      <section aria-label="Boojiboo appreciation journal" className="flex flex-col gap-5 rounded-md border border-primary/20 bg-journal-2 p-4 md:p-5">
+      <section aria-label="Boojiboo reflection" className="flex flex-col gap-5 rounded-md border border-primary/20 bg-journal-2 p-4 md:p-5">
+        <ListEditor surface={3} title="What went well" items={body.wentWell} onChange={(next) => updateList('wentWell', next)} placeholder="A good moment…" tone="positive" />
+        <ListEditor surface={4} title="What went bad" items={body.wentBad} onChange={(next) => updateList('wentBad', next)} placeholder="A hard moment…" tone="negative" />
+        <ListEditor surface={5} title="What I did well" items={body.didWell} onChange={(next) => updateList('didWell', next)} placeholder="Something I handled right…" tone="positive" />
+        <ListEditor surface={6} title="What I can accept about her" items={body.canAccept} onChange={(next) => updateList('canAccept', next)} placeholder="Something to make peace with…" tone="positive" />
+        <ListEditor surface={7} title="What I can't accept about her" items={body.cannotAccept} onChange={(next) => updateList('cannotAccept', next)} placeholder="A real boundary or dealbreaker…" tone="negative" />
+        <ListEditor surface={4} title="What I can improve" items={body.canImprove} onChange={(next) => updateList('canImprove', next)} placeholder="Something on me to work on…" />
+        <ListEditor surface={5} title="What did I learn" items={body.learned} onChange={(next) => updateList('learned', next)} placeholder="An insight to carry forward…" />
         <ListEditor
           surface={3}
           title="Things I appreciate about Boojiboo"
           items={body.appreciations}
-          onChange={updateAppreciations}
+          onChange={(next) => updateList('appreciations', next)}
           placeholder="Something you appreciate…"
           tone="positive"
         />

@@ -5,7 +5,15 @@ import { journalEntries } from '@/lib/db/schema'
 import { getSession } from '@/lib/session'
 
 const SECTION_LABELS: Record<string, string> = {
+  wentWell: 'What went well',
+  wentBad: 'What went bad',
+  didWell: 'What I did well',
+  canAccept: 'What I can accept about her',
+  cannotAccept: "What I can't accept about her",
+  canImprove: 'What I can improve',
+  learned: 'What did I learn',
   appreciations: 'Things I appreciate about Boojiboo',
+  details: 'Details',
 }
 
 const SECTION_ORDER = Object.keys(SECTION_LABELS)
