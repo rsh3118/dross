@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     template: '%s · dross',
   },
   description:
-    'A personal life-management hub: tasks, wiki, and autonomous agents that research, tidy, brief, and remind.',
+    'A personal hub for tasks, journal, relationship dossiers, wiki, and autonomous agents that research, tidy, brief, and remind.',
   generator: 'v0.app',
   applicationName: 'dross',
   appleWebApp: {

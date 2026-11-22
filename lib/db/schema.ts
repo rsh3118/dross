@@ -1,5 +1,6 @@
 import {
   boolean,
+  index,
   integer,
   jsonb,
   pgTable,
@@ -172,6 +173,24 @@ export const tasks = pgTable('tasks', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+export const taskComments = pgTable(
+  'task_comments',
+  {
+    id: serial('id').primaryKey(),
+    userId: text('userId').notNull(),
+    taskId: integer('task_id').notNull(),
+    content: text('content').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userTaskCreatedIdx: index('task_comments_user_task_created_idx').on(
+      table.userId,
+      table.taskId,
+      table.createdAt,
+    ),
+  }),
+)
 
 // Mountains = long-range objectives (Notion "Mountains ⛰️" / 2026 Goals).
 export type StructureStatus = 'active' | 'done' | 'someday'
@@ -402,7 +421,25 @@ export type CapturedTask = typeof capturedTasks.$inferSelect
 // depends on `type`. Kept as jsonb because both formats are list-heavy and vary.
 export type JournalType = 'daily' | 'relationship'
 
-export type DailyJournalBody = {
+export type JournalInteraction = {
+  person: string
+  interaction: string
+  feelings: string
+}
+
+export type JournalTimeSpent = {
+  activity: string
+  minutes: number | null
+  feelings: string
+  notes: string
+}
+
+export type JournalTrackingBody = {
+  interactions: JournalInteraction[]
+  timeSpent: JournalTimeSpent[]
+}
+
+export type DailyJournalBody = JournalTrackingBody & {
   feelings: string[]
   wentWell: string[]
   wentPoorly: string[]
@@ -411,7 +448,7 @@ export type DailyJournalBody = {
   lessonsLong: string[]
 }
 
-export type RelationshipJournalBody = {
+export type RelationshipJournalBody = JournalTrackingBody & {
   wentWell: string[]
   wentBad: string[]
   canAccept: string[]
@@ -439,6 +476,45 @@ export const journalEntries = pgTable('journal_entries', {
 })
 
 export type JournalEntry = typeof journalEntries.$inferSelect
+
+export type DossierHistorySource = 'manual' | 'journal' | 'ai'
+export type DossierReflectionActor = 'me' | 'ai'
+
+export const dossierPeople = pgTable('dossier_people', {
+  id: serial('id').primaryKey(),
+  userId: text('userId').notNull(),
+  name: text('name').notNull(),
+  importance: text('importance').notNull().default(''),
+  relationshipLevel: text('relationship_level').notNull().default(''),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const dossierHistory = pgTable('dossier_history', {
+  id: serial('id').primaryKey(),
+  userId: text('userId').notNull(),
+  personId: integer('person_id').notNull(),
+  title: text('title'),
+  content: text('content').notNull(),
+  occurredAt: timestamp('occurred_at', { withTimezone: true }),
+  sourceType: text('source_type').$type<DossierHistorySource>().notNull().default('manual'),
+  sourceJournalEntryId: integer('source_journal_entry_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const dossierReflections = pgTable('dossier_reflections', {
+  id: serial('id').primaryKey(),
+  userId: text('userId').notNull(),
+  personId: integer('person_id').notNull(),
+  content: text('content').notNull(),
+  actor: text('actor').$type<DossierReflectionActor>().notNull().default('me'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export type DossierPerson = typeof dossierPeople.$inferSelect
+export type DossierHistoryRecord = typeof dossierHistory.$inferSelect
+export type DossierReflection = typeof dossierReflections.$inferSelect
 
 export type Task = typeof tasks.$inferSelect
 export type Mountain = typeof mountains.$inferSelect

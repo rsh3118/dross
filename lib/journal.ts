@@ -14,6 +14,8 @@ export const emptyDailyBody = (): DailyJournalBody => ({
   lessonsShort: [],
   lessonsMedium: [],
   lessonsLong: [],
+  interactions: [],
+  timeSpent: [],
 })
 
 export const emptyRelationshipBody = (): RelationshipJournalBody => ({
@@ -25,6 +27,8 @@ export const emptyRelationshipBody = (): RelationshipJournalBody => ({
   didWell: [],
   learned: [],
   details: '',
+  interactions: [],
+  timeSpent: [],
 })
 
 export const emptyBodyFor = (type: JournalType) =>

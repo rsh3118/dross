@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ListEditor } from './list-editor'
+import { TrackingEditors } from './tracking-editors'
 
 type Tab = JournalType
 
@@ -301,6 +302,18 @@ function DailyEditor({ entry }: { entry: JournalEntry }) {
     persist({ body: nextBody })
   }
 
+  const updateInteractions = (interactions: DailyJournalBody['interactions']) => {
+    const nextBody = { ...body, interactions }
+    setBody(nextBody)
+    persist({ body: nextBody })
+  }
+
+  const updateTimeSpent = (timeSpent: DailyJournalBody['timeSpent']) => {
+    const nextBody = { ...body, timeSpent }
+    setBody(nextBody)
+    persist({ body: nextBody })
+  }
+
   return (
     <EditorShell
       id={entry.id}
@@ -309,10 +322,7 @@ function DailyEditor({ entry }: { entry: JournalEntry }) {
     >
       <div className="grid gap-6 md:grid-cols-2">
         <div className="flex flex-col gap-2">
-          <label
-            htmlFor={`day-${entry.id}`}
-            className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground"
-          >
+          <label htmlFor={`day-${entry.id}`} className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
             How did the day go?
           </label>
           <Input
@@ -325,57 +335,29 @@ function DailyEditor({ entry }: { entry: JournalEntry }) {
             placeholder="One line on the day overall…"
           />
         </div>
-
-        <ListEditor
-          title="Big feelings today"
-          items={body.feelings}
-          onChange={(next) => updateList('feelings', next)}
-          placeholder="Name a feeling…"
-        />
+        <ListEditor title="Big feelings today" items={body.feelings} onChange={(next) => updateList('feelings', next)} placeholder="Name a feeling…" />
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <ListEditor
-          title="What went well"
-          items={body.wentWell}
-          onChange={(next) => updateList('wentWell', next)}
-          placeholder="A win, big or small…"
-          tone="positive"
-        />
-        <ListEditor
-          title="What didn't go well"
-          items={body.wentPoorly}
-          onChange={(next) => updateList('wentPoorly', next)}
-          placeholder="A snag or regret…"
-          tone="negative"
-        />
+        <ListEditor title="What went well" items={body.wentWell} onChange={(next) => updateList('wentWell', next)} placeholder="A win, big or small…" tone="positive" />
+        <ListEditor title="What didn't go well" items={body.wentPoorly} onChange={(next) => updateList('wentPoorly', next)} placeholder="A snag or regret…" tone="negative" />
       </div>
 
       <div className="flex flex-col gap-4 rounded-md border border-dashed p-4">
-        <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-          Lessons
-        </span>
+        <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">Lessons</span>
         <div className="grid gap-6 md:grid-cols-3">
-          <ListEditor
-            title="Short term"
-            items={body.lessonsShort}
-            onChange={(next) => updateList('lessonsShort', next)}
-            placeholder="For this week…"
-          />
-          <ListEditor
-            title="Medium term"
-            items={body.lessonsMedium}
-            onChange={(next) => updateList('lessonsMedium', next)}
-            placeholder="For this season…"
-          />
-          <ListEditor
-            title="Long term"
-            items={body.lessonsLong}
-            onChange={(next) => updateList('lessonsLong', next)}
-            placeholder="For life…"
-          />
+          <ListEditor title="Short term" items={body.lessonsShort} onChange={(next) => updateList('lessonsShort', next)} placeholder="For this week…" />
+          <ListEditor title="Medium term" items={body.lessonsMedium} onChange={(next) => updateList('lessonsMedium', next)} placeholder="For this season…" />
+          <ListEditor title="Long term" items={body.lessonsLong} onChange={(next) => updateList('lessonsLong', next)} placeholder="For life…" />
         </div>
       </div>
+
+      <TrackingEditors
+        interactions={body.interactions ?? []}
+        timeSpent={body.timeSpent ?? []}
+        onInteractionsChange={updateInteractions}
+        onTimeSpentChange={updateTimeSpent}
+      />
     </EditorShell>
   )
 }
@@ -383,10 +365,7 @@ function DailyEditor({ entry }: { entry: JournalEntry }) {
 function RelationshipEditor({ entry }: { entry: JournalEntry }) {
   const initial = (entry.body ?? {}) as Partial<RelationshipJournalBody>
   const [title, setTitle] = useState(entry.title ?? '')
-  const [body, setBody] = useState<RelationshipJournalBody>({
-    ...emptyRelationshipBody(),
-    ...initial,
-  })
+  const [body, setBody] = useState<RelationshipJournalBody>({ ...emptyRelationshipBody(), ...initial })
   const [, startTransition] = useTransition()
 
   const persist = (patch: { title?: string; body?: RelationshipJournalBody }) =>
@@ -395,17 +374,22 @@ function RelationshipEditor({ entry }: { entry: JournalEntry }) {
     })
 
   const updateList = (
-    key:
-      | 'wentWell'
-      | 'wentBad'
-      | 'canAccept'
-      | 'cannotAccept'
-      | 'canImprove'
-      | 'didWell'
-      | 'learned',
+    key: 'wentWell' | 'wentBad' | 'canAccept' | 'cannotAccept' | 'canImprove' | 'didWell' | 'learned',
     next: string[],
   ) => {
     const nextBody = { ...body, [key]: next }
+    setBody(nextBody)
+    persist({ body: nextBody })
+  }
+
+  const updateInteractions = (interactions: RelationshipJournalBody['interactions']) => {
+    const nextBody = { ...body, interactions }
+    setBody(nextBody)
+    persist({ body: nextBody })
+  }
+
+  const updateTimeSpent = (timeSpent: RelationshipJournalBody['timeSpent']) => {
+    const nextBody = { ...body, timeSpent }
     setBody(nextBody)
     persist({ body: nextBody })
   }
@@ -426,57 +410,22 @@ function RelationshipEditor({ entry }: { entry: JournalEntry }) {
         />
       }
     >
-      {/* Wide layout: all six lists share the full width in an even grid now
-          that there is no details pane pulling focus to one side. */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <ListEditor
-          title="What went well"
-          items={body.wentWell}
-          onChange={(next) => updateList('wentWell', next)}
-          placeholder="A good moment…"
-          tone="positive"
-        />
-        <ListEditor
-          title="What went bad"
-          items={body.wentBad}
-          onChange={(next) => updateList('wentBad', next)}
-          placeholder="A hard moment…"
-          tone="negative"
-        />
-        <ListEditor
-          title="What I did well"
-          items={body.didWell}
-          onChange={(next) => updateList('didWell', next)}
-          placeholder="Something I handled right…"
-          tone="positive"
-        />
-        <ListEditor
-          title="What I can accept about her"
-          items={body.canAccept}
-          onChange={(next) => updateList('canAccept', next)}
-          placeholder="Something to make peace with…"
-          tone="positive"
-        />
-        <ListEditor
-          title="What I can't accept about her"
-          items={body.cannotAccept}
-          onChange={(next) => updateList('cannotAccept', next)}
-          placeholder="A real boundary or dealbreaker…"
-          tone="negative"
-        />
-        <ListEditor
-          title="What I can improve"
-          items={body.canImprove}
-          onChange={(next) => updateList('canImprove', next)}
-          placeholder="Something on me to work on…"
-        />
-        <ListEditor
-          title="What did I learn"
-          items={body.learned}
-          onChange={(next) => updateList('learned', next)}
-          placeholder="An insight to carry forward…"
-        />
+        <ListEditor title="What went well" items={body.wentWell} onChange={(next) => updateList('wentWell', next)} placeholder="A good moment…" tone="positive" />
+        <ListEditor title="What went bad" items={body.wentBad} onChange={(next) => updateList('wentBad', next)} placeholder="A hard moment…" tone="negative" />
+        <ListEditor title="What I did well" items={body.didWell} onChange={(next) => updateList('didWell', next)} placeholder="Something I handled right…" tone="positive" />
+        <ListEditor title="What I can accept about her" items={body.canAccept} onChange={(next) => updateList('canAccept', next)} placeholder="Something to make peace with…" tone="positive" />
+        <ListEditor title="What I can't accept about her" items={body.cannotAccept} onChange={(next) => updateList('cannotAccept', next)} placeholder="A real boundary or dealbreaker…" tone="negative" />
+        <ListEditor title="What I can improve" items={body.canImprove} onChange={(next) => updateList('canImprove', next)} placeholder="Something on me to work on…" />
+        <ListEditor title="What did I learn" items={body.learned} onChange={(next) => updateList('learned', next)} placeholder="An insight to carry forward…" />
       </div>
+
+      <TrackingEditors
+        interactions={body.interactions ?? []}
+        timeSpent={body.timeSpent ?? []}
+        onInteractionsChange={updateInteractions}
+        onTimeSpentChange={updateTimeSpent}
+      />
     </EditorShell>
   )
 }

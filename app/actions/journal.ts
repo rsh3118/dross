@@ -10,6 +10,17 @@ import { getUserId } from '@/lib/session'
 
 const item = z.string().trim().max(500)
 const list = z.array(item).max(200)
+const interactions = z.array(z.object({
+  person: item,
+  interaction: item,
+  feelings: item,
+})).max(200)
+const timeSpent = z.array(z.object({
+  activity: item,
+  minutes: z.number().int().positive().max(100000).nullable(),
+  feelings: item,
+  notes: z.string().trim().max(8000),
+})).max(200)
 
 // Permissive union: only the keys relevant to a given journal type are sent.
 const bodySchema = z
@@ -26,6 +37,8 @@ const bodySchema = z
     lessonsShort: list.optional(),
     lessonsMedium: list.optional(),
     lessonsLong: list.optional(),
+    interactions: interactions.optional(),
+    timeSpent: timeSpent.optional(),
     details: z.string().trim().max(8000).optional(),
   })
   .strip()

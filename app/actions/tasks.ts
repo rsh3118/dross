@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import {
   boulders,
+  taskComments,
   tasks,
   type Recurrence,
   type TaskCategory,
@@ -209,8 +210,45 @@ export async function archiveTask(id: number) {
   revalidateTaskViews()
 }
 
+export async function listTaskComments(taskId: number) {
+  const userId = await getUserId()
+  const validTaskId = z.number().int().positive().parse(taskId)
+  const [task] = await db
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(and(eq(tasks.id, validTaskId), eq(tasks.userId, userId)))
+  if (!task) throw new Error('Task not found')
+
+  return db
+    .select()
+    .from(taskComments)
+    .where(and(eq(taskComments.taskId, validTaskId), eq(taskComments.userId, userId)))
+    .orderBy(asc(taskComments.createdAt), asc(taskComments.id))
+}
+
+export async function addTaskComment(taskId: number, rawContent: string) {
+  const userId = await getUserId()
+  const validTaskId = z.number().int().positive().parse(taskId)
+  const content = z.string().trim().min(1).max(4000).parse(rawContent)
+  const [task] = await db
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(and(eq(tasks.id, validTaskId), eq(tasks.userId, userId)))
+  if (!task) throw new Error('Task not found')
+
+  const [comment] = await db
+    .insert(taskComments)
+    .values({ userId, taskId: validTaskId, content })
+    .returning()
+  revalidateTaskViews()
+  return comment
+}
+
 export async function deleteTask(id: number) {
   const userId = await getUserId()
+  await db
+    .delete(taskComments)
+    .where(and(eq(taskComments.taskId, id), eq(taskComments.userId, userId)))
   await db.delete(tasks).where(and(eq(tasks.id, id), eq(tasks.userId, userId)))
   revalidateTaskViews()
 }
