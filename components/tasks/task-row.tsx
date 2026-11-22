@@ -157,9 +157,9 @@ export function TaskRow({
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-2">
-        {/* Line 1: title (half) · today + this week (other half) */}
-        <div className="relative flex items-center gap-3">
-          <div className="flex min-w-0 basis-1/2 items-center gap-2">
+        {/* Title and urgency buckets share a row on wide screens and stack on narrow screens. */}
+        <div className="relative grid grid-cols-1 gap-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <div className="flex min-w-0 items-center gap-2">
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -186,7 +186,7 @@ export function TaskRow({
 
           <div
             onDoubleClick={(e) => e.stopPropagation()}
-            className="flex flex-1 items-center justify-end gap-1.5"
+            className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 lg:flex lg:flex-nowrap lg:items-center lg:justify-end"
           >
             {(['top', 'today', 'week', 'backlog'] as const).map((option) => (
               <button
@@ -196,7 +196,7 @@ export function TaskRow({
                 aria-pressed={bucket === option}
                 onClick={() => setBucket(option)}
                 className={cn(
-                  'h-8 rounded-md border px-2.5 text-sm capitalize transition-colors',
+                  'h-8 min-w-0 whitespace-nowrap rounded-md border px-2 text-sm capitalize transition-colors sm:px-2.5',
                   bucket === option
                     ? 'border-primary/40 bg-primary/10 text-primary'
                     : 'border-input bg-background/70 text-muted-foreground hover:text-foreground',
