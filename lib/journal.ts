@@ -1,7 +1,7 @@
 import type {
   DailyJournalBody,
   JournalType,
-  RelationshipJournalBody,
+  BoojibooJournalBody,
 } from '@/lib/db/schema'
 
 // `import type` keeps this file free of the drizzle runtime, so it is safe to
@@ -18,17 +18,8 @@ export const emptyDailyBody = (): DailyJournalBody => ({
   timeSpent: [],
 })
 
-export const emptyRelationshipBody = (): RelationshipJournalBody => ({
-  wentWell: [],
-  wentBad: [],
-  canAccept: [],
-  cannotAccept: [],
-  canImprove: [],
-  didWell: [],
-  learned: [],
-  details: '',
-  interactions: [],
-  timeSpent: [],
+export const emptyRelationshipBody = (): BoojibooJournalBody => ({
+  appreciations: [],
 })
 
 export const emptyBodyFor = (type: JournalType) =>
@@ -36,7 +27,7 @@ export const emptyBodyFor = (type: JournalType) =>
 
 export const JOURNAL_TABS = [
   { value: 'daily', label: 'Daily' },
-  { value: 'relationship', label: 'Relationships' },
+  { value: 'relationship', label: 'Boojiboo' },
 ] as const
 
 export function formatEntryDate(date: Date | string) {

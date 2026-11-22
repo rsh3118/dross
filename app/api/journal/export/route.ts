@@ -5,16 +5,7 @@ import { journalEntries } from '@/lib/db/schema'
 import { getSession } from '@/lib/session'
 
 const SECTION_LABELS: Record<string, string> = {
-  wentWell: 'What went well',
-  wentBad: 'What went bad',
-  didWell: 'What I did well',
-  canAccept: 'What I can accept about her',
-  cannotAccept: "What I can't accept about her",
-  canImprove: 'What I can improve',
-  learned: 'What did I learn',
-  interactions: 'Interactions',
-  timeSpent: 'Time spent',
-  details: 'Details',
+  appreciations: 'Things I appreciate about Boojiboo',
 }
 
 const SECTION_ORDER = Object.keys(SECTION_LABELS)
@@ -62,13 +53,12 @@ export async function GET() {
 
   const blocks = rows.map((row, index) => {
     const body = (row.body ?? {}) as Record<string, unknown>
-    const extraKeys = Object.keys(body).filter((k) => !SECTION_ORDER.includes(k))
-    const sections = [...SECTION_ORDER, ...extraKeys]
+    const sections = SECTION_ORDER
       .map((key) => formatSection(key, body[key]))
       .filter((s): s is string => s !== null)
 
     const header = [
-      `ENTRY ${index + 1}: ${row.title?.trim() || 'Untitled reflection'}`,
+      `ENTRY ${index + 1}: Boojiboo`,
       `Date: ${row.entryDate.toISOString()}`,
       `Created: ${row.createdAt.toISOString()}`,
       `Last updated: ${row.updatedAt.toISOString()}`,
@@ -84,14 +74,14 @@ export async function GET() {
 
   const divider = `\n\n${'='.repeat(60)}\n\n`
   const text =
-    `RELATIONSHIP REFLECTIONS\nExported ${new Date().toISOString()}\n${rows.length} ${rows.length === 1 ? 'entry' : 'entries'}` +
+    `BOOJIBOO APPRECIATIONS\nExported ${new Date().toISOString()}\n${rows.length} ${rows.length === 1 ? 'entry' : 'entries'}` +
     (blocks.length > 0 ? `${divider}${blocks.join(divider)}` : '') +
     '\n'
 
   return new NextResponse(text, {
     headers: {
       'Content-Type': 'text/plain; charset=utf-8',
-      'Content-Disposition': 'attachment; filename="relationship-reflections.txt"',
+      'Content-Disposition': 'attachment; filename="boojiboo-appreciations.txt"',
       'Cache-Control': 'private, no-store',
     },
   })

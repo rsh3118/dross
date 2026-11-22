@@ -479,18 +479,11 @@ export type DailyJournalBody = JournalTrackingBody & {
   lessonsLong: string[]
 }
 
-export type RelationshipJournalBody = JournalTrackingBody & {
-  wentWell: string[]
-  wentBad: string[]
-  canAccept: string[]
-  cannotAccept: string[]
-  canImprove: string[]
-  didWell: string[]
-  learned: string[]
-  details: string
+export type BoojibooJournalBody = {
+  appreciations: string[]
 }
 
-export type JournalBody = DailyJournalBody | RelationshipJournalBody
+export type JournalBody = DailyJournalBody | BoojibooJournalBody
 
 export const journalEntries = pgTable('journal_entries', {
   id: serial('id').primaryKey(),
