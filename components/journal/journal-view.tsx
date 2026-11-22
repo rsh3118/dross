@@ -7,7 +7,7 @@ import type {
   DailyJournalBody,
   JournalEntry,
   JournalType,
-  RelationshipJournalBody,
+  BoojibooJournalBody,
 } from '@/lib/db/schema'
 import {
   archiveJournalEntry,
@@ -43,7 +43,7 @@ export function JournalView({ entries }: { entries: JournalEntry[] }) {
     startTransition(async () => {
       const row = await createJournalEntry(tab)
       if (row) setSelectedId(row.id)
-      toast(tab === 'daily' ? 'New daily entry' : 'New reflection')
+      toast(tab === 'daily' ? 'New daily entry' : 'New Boojiboo entry')
     })
 
   return (
@@ -76,14 +76,14 @@ export function JournalView({ entries }: { entries: JournalEntry[] }) {
           {tab === 'relationship' && (
             <a
               href="/api/journal/export"
-              download="relationship-reflections.txt"
+              download="boojiboo-appreciations.txt"
               className={cn(buttonVariants({ variant: 'outline' }), 'shrink-0 whitespace-nowrap')}
             >
-              <Download className="size-4" /> Download .txt
+              <Download className="size-4" /> Download appreciations
             </a>
           )}
           <Button onClick={addEntry} disabled={pending} className="shrink-0 whitespace-nowrap">
-            <Plus className="size-4" /> {tab === 'daily' ? 'New daily entry' : 'New reflection'}
+            <Plus className="size-4" /> {tab === 'daily' ? 'New daily entry' : 'New Boojiboo entry'}
           </Button>
         </div>
       </div>
@@ -113,7 +113,7 @@ function EmptyState({ tab }: { tab: Tab }) {
       <p className="mt-3 text-sm text-muted-foreground text-pretty">
         {tab === 'daily'
           ? 'No daily entries yet. Start one to reflect on how today went.'
-          : 'No relationship reflections yet. Capture what went well and what went bad.'}
+          : 'No Boojiboo appreciations yet. Start a list of things you appreciate about Boojiboo.'}
       </p>
     </div>
   )
@@ -121,7 +121,7 @@ function EmptyState({ tab }: { tab: Tab }) {
 
 const entryLabel = (entry: JournalEntry) =>
   entry.type === 'relationship'
-    ? entry.title?.trim() || 'Untitled reflection'
+    ? 'Boojiboo appreciations'
     : entry.summary?.trim() || 'No summary'
 
 /** A searchable entry picker: click to open a type-to-filter list of dates
@@ -356,35 +356,16 @@ function DailyEditor({ entry }: { entry: JournalEntry }) {
 }
 
 function RelationshipEditor({ entry }: { entry: JournalEntry }) {
-  const initial = (entry.body ?? {}) as Partial<RelationshipJournalBody>
-  const [title, setTitle] = useState(entry.title ?? '')
-  const [body, setBody] = useState<RelationshipJournalBody>({ ...emptyRelationshipBody(), ...initial })
+  const initial = (entry.body ?? {}) as Partial<BoojibooJournalBody>
+  const [body, setBody] = useState<BoojibooJournalBody>({ ...emptyRelationshipBody(), ...initial })
   const [, startTransition] = useTransition()
 
-  const persist = (patch: { title?: string; body?: RelationshipJournalBody }) =>
+  const updateAppreciations = (appreciations: string[]) => {
+    const nextBody = { appreciations: appreciations.slice(0, 5) }
+    setBody(nextBody)
     startTransition(async () => {
-      await saveJournalEntry(entry.id, patch)
+      await saveJournalEntry(entry.id, { body: nextBody })
     })
-
-  const updateList = (
-    key: 'wentWell' | 'wentBad' | 'canAccept' | 'cannotAccept' | 'canImprove' | 'didWell' | 'learned',
-    next: string[],
-  ) => {
-    const nextBody = { ...body, [key]: next }
-    setBody(nextBody)
-    persist({ body: nextBody })
-  }
-
-  const updateInteractions = (interactions: RelationshipJournalBody['interactions']) => {
-    const nextBody = { ...body, interactions }
-    setBody(nextBody)
-    persist({ body: nextBody })
-  }
-
-  const updateTimeSpent = (timeSpent: RelationshipJournalBody['timeSpent']) => {
-    const nextBody = { ...body, timeSpent }
-    setBody(nextBody)
-    persist({ body: nextBody })
   }
 
   return (
@@ -394,34 +375,21 @@ function RelationshipEditor({ entry }: { entry: JournalEntry }) {
       header={(
         <div className="flex min-w-0 items-center gap-2">
           <Sparkles className="dross-spin size-4 shrink-0 text-primary" aria-hidden="true" />
-          <Input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onBlur={() => {
-              if (title !== (entry.title ?? '')) persist({ title })
-            }}
-            placeholder="Who or what is this about?"
-            className="h-auto min-w-0 flex-1 border-0 bg-transparent p-0 text-lg font-semibold tracking-tight shadow-none focus-visible:ring-0"
-          />
+          <h2 className="text-lg font-semibold tracking-tight">Boojiboo</h2>
         </div>
       )}
     >
-      <section aria-label="Relationship reflection" className="flex flex-col gap-5 rounded-md border border-primary/20 bg-journal-2 p-4 md:p-5">
-        <ListEditor surface={3} title="What went well" items={body.wentWell} onChange={(next) => updateList('wentWell', next)} placeholder="A good moment…" tone="positive" />
-        <ListEditor surface={4} title="What went bad" items={body.wentBad} onChange={(next) => updateList('wentBad', next)} placeholder="A hard moment…" tone="negative" />
-        <ListEditor surface={5} title="What I did well" items={body.didWell} onChange={(next) => updateList('didWell', next)} placeholder="Something I handled right…" tone="positive" />
-        <ListEditor surface={6} title="What I can accept about her" items={body.canAccept} onChange={(next) => updateList('canAccept', next)} placeholder="Something to make peace with…" tone="positive" />
-        <ListEditor surface={7} title="What I can't accept about her" items={body.cannotAccept} onChange={(next) => updateList('cannotAccept', next)} placeholder="A real boundary or dealbreaker…" tone="negative" />
-        <ListEditor surface={4} title="What I can improve" items={body.canImprove} onChange={(next) => updateList('canImprove', next)} placeholder="Something on me to work on…" />
-        <ListEditor surface={5} title="What did I learn" items={body.learned} onChange={(next) => updateList('learned', next)} placeholder="An insight to carry forward…" />
+      <section aria-label="Boojiboo appreciation journal" className="flex flex-col gap-5 rounded-md border border-primary/20 bg-journal-2 p-4 md:p-5">
+        <ListEditor
+          surface={3}
+          title="5 things I appreciate about Boojiboo"
+          items={body.appreciations}
+          onChange={updateAppreciations}
+          placeholder="Something you appreciate…"
+          tone="positive"
+          maxItems={5}
+        />
       </section>
-
-      <TrackingEditors
-        interactions={body.interactions ?? []}
-        timeSpent={body.timeSpent ?? []}
-        onInteractionsChange={updateInteractions}
-        onTimeSpentChange={updateTimeSpent}
-      />
     </EditorShell>
   )
 }

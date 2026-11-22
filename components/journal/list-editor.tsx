@@ -31,6 +31,7 @@ export function ListEditor({
   onChange,
   placeholder,
   tone = 'neutral',
+  maxItems,
 }: {
   surface?: Surface
   title: string
@@ -38,12 +39,13 @@ export function ListEditor({
   onChange: (next: string[]) => void
   placeholder?: string
   tone?: Tone
+  maxItems?: number
 }) {
   const [value, setValue] = useState('')
 
   const add = () => {
     const v = value.trim()
-    if (!v) return
+    if (!v || (maxItems !== undefined && items.length >= maxItems)) return
     onChange([...items, v])
     setValue('')
   }
@@ -53,7 +55,7 @@ export function ListEditor({
   return (
     <div className={cn('flex flex-col gap-2 rounded-md border border-primary/15 p-3', SURFACE[surface])}>
       <h4 className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-        {title}
+        {title}{maxItems !== undefined && ` (${items.length}/${maxItems})`}
       </h4>
 
       {items.length > 0 && (
@@ -78,29 +80,31 @@ export function ListEditor({
         </ul>
       )}
 
-      <div className="flex items-center gap-2">
-        <Input
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) {
-              e.preventDefault()
-              add()
-            }
-          }}
-          placeholder={placeholder ?? 'Add an item…'}
-        />
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          onClick={add}
-          disabled={!value.trim()}
-          aria-label="Add item"
-        >
-          <Plus className="size-4" />
-        </Button>
-      </div>
+      {(maxItems === undefined || items.length < maxItems) && (
+        <div className="flex items-center gap-2">
+          <Input
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) {
+                e.preventDefault()
+                add()
+              }
+            }}
+            placeholder={placeholder ?? 'Add an item…'}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={add}
+            disabled={!value.trim()}
+            aria-label="Add item"
+          >
+            <Plus className="size-4" />
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
