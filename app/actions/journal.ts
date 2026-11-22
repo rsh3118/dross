@@ -38,7 +38,7 @@ const bodySchema = z
     canImprove: list.optional(),
     didWell: list.optional(),
     learned: list.optional(),
-    appreciations: z.array(item).max(5).optional(),
+    appreciations: list.optional(),
     lessonsShort: list.optional(),
     lessonsMedium: list.optional(),
     lessonsLong: list.optional(),

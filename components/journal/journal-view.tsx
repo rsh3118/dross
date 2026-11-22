@@ -361,7 +361,7 @@ function RelationshipEditor({ entry }: { entry: JournalEntry }) {
   const [, startTransition] = useTransition()
 
   const updateAppreciations = (appreciations: string[]) => {
-    const nextBody = { appreciations: appreciations.slice(0, 5) }
+    const nextBody = { appreciations }
     setBody(nextBody)
     startTransition(async () => {
       await saveJournalEntry(entry.id, { body: nextBody })
@@ -382,12 +382,11 @@ function RelationshipEditor({ entry }: { entry: JournalEntry }) {
       <section aria-label="Boojiboo appreciation journal" className="flex flex-col gap-5 rounded-md border border-primary/20 bg-journal-2 p-4 md:p-5">
         <ListEditor
           surface={3}
-          title="5 things I appreciate about Boojiboo"
+          title="Things I appreciate about Boojiboo"
           items={body.appreciations}
           onChange={updateAppreciations}
           placeholder="Something you appreciate…"
           tone="positive"
-          maxItems={5}
         />
       </section>
     </EditorShell>
