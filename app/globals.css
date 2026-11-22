@@ -30,6 +30,13 @@
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
+  --color-journal-1: var(--journal-1);
+  --color-journal-2: var(--journal-2);
+  --color-journal-3: var(--journal-3);
+  --color-journal-4: var(--journal-4);
+  --color-journal-5: var(--journal-5);
+  --color-journal-6: var(--journal-6);
+  --color-journal-7: var(--journal-7);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
@@ -69,6 +76,13 @@
   --destructive: oklch(0.72 0.2 5);
   --success: oklch(0.83 0.22 130);
   --warning: oklch(0.86 0.16 95);
+  --journal-1: oklch(0.19 0.025 48);
+  --journal-2: oklch(0.215 0.035 49);
+  --journal-3: oklch(0.24 0.045 50);
+  --journal-4: oklch(0.265 0.055 51);
+  --journal-5: oklch(0.29 0.065 52);
+  --journal-6: oklch(0.315 0.075 53);
+  --journal-7: oklch(0.34 0.085 54);
   --border: oklch(0.96 0.01 95 / 13%);
   --input: oklch(0.96 0.01 95 / 18%);
   --ring: oklch(0.78 0.18 55);

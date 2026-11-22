@@ -20,7 +20,7 @@ export function TrackingEditors({
 }: TrackingEditorsProps) {
   return (
     <div className="flex flex-col gap-6">
-      <section aria-labelledby="interactions-heading" className="flex flex-col gap-3 rounded-md border p-4">
+      <section aria-labelledby="interactions-heading" className="flex flex-col gap-3 rounded-md border border-primary/15 bg-journal-2 p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h3 id="interactions-heading" className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
@@ -37,7 +37,7 @@ export function TrackingEditors({
         ) : (
           <div className="flex flex-col gap-3">
             {interactions.map((item, index) => (
-              <fieldset key={index} className="flex flex-col gap-3 rounded-md border bg-card p-3">
+              <fieldset key={index} className="flex flex-col gap-3 rounded-md border border-primary/20 bg-journal-6 p-3">
                 <legend className="sr-only">Interaction {index + 1}</legend>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-medium">Person {index + 1}</span>
@@ -54,7 +54,7 @@ export function TrackingEditors({
         )}
       </section>
 
-      <section aria-labelledby="activity-heading" className="flex flex-col gap-3 rounded-md border p-4">
+      <section aria-labelledby="activity-heading" className="flex flex-col gap-3 rounded-md border border-primary/20 bg-journal-4 p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h3 id="activity-heading" className="font-mono text-[11px] uppercase tracking-widest text-primary">
@@ -71,7 +71,7 @@ export function TrackingEditors({
         ) : (
           <div className="flex flex-col gap-3">
             {timeSpent.map((item, index) => (
-              <fieldset key={index} className="flex flex-col gap-3 rounded-md border bg-card p-3">
+              <fieldset key={index} className="flex flex-col gap-3 rounded-md border border-primary/20 bg-journal-6 p-3">
                 <legend className="sr-only">Time spent {index + 1}</legend>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-medium">Activity {index + 1}</span>
