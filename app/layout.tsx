@@ -34,11 +34,10 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'dark light',
+  colorScheme: 'dark',
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f2f8ff' },
-    { media: '(prefers-color-scheme: dark)', color: '#323d53' },
+    { media: '(prefers-color-scheme: dark)', color: '#1b1c19' },
   ],
 }
 
@@ -50,7 +49,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="bg-background" suppressHydrationWarning>
       <body className="antialiased font-sans">
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
           {children}
           <Toaster position="bottom-right" />
         </ThemeProvider>

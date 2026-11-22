@@ -205,7 +205,7 @@ export function AuthForm({
               <Button
                 type="button"
                 size="lg"
-                className="w-full h-12 gap-3 text-base font-medium"
+                className="dross-glow w-full h-12 gap-3 text-base font-medium"
                 onClick={handleGoogle}
                 disabled={googleState !== 'idle'}
               >
