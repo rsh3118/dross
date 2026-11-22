@@ -49,20 +49,20 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Monokai-inspired charcoal surfaces with restrained neon syntax accents. */
+/* Warm charcoal surfaces with orange and spectral highlight accents. */
 :root {
   color-scheme: dark;
-  --background: oklch(0.16 0.008 145);
+  --background: oklch(0.16 0.014 55);
   --foreground: oklch(0.96 0.01 95);
-  --card: oklch(0.2 0.009 145);
+  --card: oklch(0.2 0.016 55);
   --card-foreground: oklch(0.96 0.01 95);
-  --popover: oklch(0.22 0.009 145);
+  --popover: oklch(0.22 0.017 55);
   --popover-foreground: oklch(0.96 0.01 95);
-  --primary: oklch(0.83 0.22 130);
-  --primary-foreground: oklch(0.16 0.008 145);
-  --secondary: oklch(0.27 0.01 145);
+  --primary: oklch(0.78 0.18 55);
+  --primary-foreground: oklch(0.16 0.014 55);
+  --secondary: oklch(0.27 0.02 55);
   --secondary-foreground: oklch(0.96 0.01 95);
-  --muted: oklch(0.24 0.009 145);
+  --muted: oklch(0.24 0.018 55);
   --muted-foreground: oklch(0.72 0.015 95);
   --accent: oklch(0.72 0.2 5);
   --accent-foreground: oklch(0.98 0.01 95);
@@ -71,21 +71,21 @@
   --warning: oklch(0.86 0.16 95);
   --border: oklch(0.96 0.01 95 / 13%);
   --input: oklch(0.96 0.01 95 / 18%);
-  --ring: oklch(0.83 0.22 130);
-  --chart-1: oklch(0.83 0.22 130);
+  --ring: oklch(0.78 0.18 55);
+  --chart-1: oklch(0.78 0.18 55);
   --chart-2: oklch(0.72 0.2 5);
-  --chart-3: oklch(0.86 0.16 95);
-  --chart-4: oklch(0.72 0.015 95);
-  --chart-5: oklch(0.5 0.01 145);
+  --chart-3: oklch(0.74 0.13 220);
+  --chart-4: oklch(0.8 0.18 145);
+  --chart-5: oklch(0.86 0.16 95);
   --radius: 0.5rem;
-  --sidebar: oklch(0.14 0.008 145);
+  --sidebar: oklch(0.14 0.013 55);
   --sidebar-foreground: oklch(0.94 0.01 95);
-  --sidebar-primary: oklch(0.83 0.22 130);
-  --sidebar-primary-foreground: oklch(0.16 0.008 145);
-  --sidebar-accent: oklch(0.24 0.009 145);
+  --sidebar-primary: oklch(0.78 0.18 55);
+  --sidebar-primary-foreground: oklch(0.16 0.014 55);
+  --sidebar-accent: oklch(0.24 0.018 55);
   --sidebar-accent-foreground: oklch(0.96 0.01 95);
   --sidebar-border: oklch(0.96 0.01 95 / 12%);
-  --sidebar-ring: oklch(0.83 0.22 130);
+  --sidebar-ring: oklch(0.78 0.18 55);
 }
 
 @layer base {
@@ -120,11 +120,13 @@
   background-image: linear-gradient(
     110deg,
     var(--card) 0%,
-    color-mix(in oklch, var(--primary) 8%, var(--card)) 44%,
-    color-mix(in oklch, var(--accent) 8%, var(--card)) 56%,
-    var(--card) 100%
+    color-mix(in oklch, var(--primary) 18%, var(--card)) 18%,
+    color-mix(in oklch, var(--chart-2) 14%, var(--card)) 38%,
+    color-mix(in oklch, var(--chart-3) 14%, var(--card)) 58%,
+    color-mix(in oklch, var(--chart-4) 12%, var(--card)) 78%,
+    color-mix(in oklch, var(--card) 94%, var(--chart-5)) 100%
   );
-  background-size: 220% 100%;
+  background-size: 280% 100%;
   animation: dross-surface-shine 12s ease-in-out infinite;
 }
 
