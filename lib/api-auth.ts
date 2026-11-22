@@ -19,7 +19,7 @@ export async function requireApiUser(request?: Request, requiredScope?: string) 
   if (bearer) {
     const oauth = verifyOAuthToken(bearer)
     if (oauth?.typ === 'mcp_access' && typeof oauth.sub === 'string') {
-      const scopes = typeof oauth.scope === 'string' ? oauth.scope.split(/\\s+/) : []
+      const scopes = typeof oauth.scope === 'string' ? oauth.scope.split(/\s+/) : []
       if (requiredScope && !scopes.includes(requiredScope)) throw new Response('Forbidden', { status: 403 })
       return { id: oauth.sub }
     }
