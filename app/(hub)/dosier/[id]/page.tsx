@@ -30,6 +30,7 @@ export default async function DosierPersonPage({ params }: { params: Promise<{ i
         person={dossier.person}
         history={dossier.history}
         reflections={dossier.reflections}
+        comments={dossier.comments}
       />
     </div>
   )

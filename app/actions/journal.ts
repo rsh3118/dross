@@ -17,10 +17,14 @@ const interactions = z.array(z.object({
 })).max(200)
 const timeSpent = z.array(z.object({
   activity: item,
-  minutes: z.number().int().positive().max(100000).nullable(),
+  duration: z.string().trim().max(80).optional(),
+  minutes: z.number().int().positive().max(100000).nullable().optional(),
   feelings: item,
   notes: z.string().trim().max(8000),
-})).max(200)
+}).transform(({ duration, minutes, ...record }) => ({
+  ...record,
+  duration: duration ?? (minutes ? `${minutes} min` : ''),
+}))).max(200)
 
 // Permissive union: only the keys relevant to a given journal type are sent.
 const bodySchema = z
@@ -77,7 +81,7 @@ export async function createJournalEntry(rawType: JournalType) {
   return row
 }
 
-export async function saveJournalEntry(id: number, raw: z.infer<typeof savePatch>) {
+export async function saveJournalEntry(id: number, raw: z.input<typeof savePatch>) {
   const userId = await getUserId()
   const data = savePatch.parse(raw)
   const [row] = await db

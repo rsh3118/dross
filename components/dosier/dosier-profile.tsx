@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, CalendarDays, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   createDossierHistory,
@@ -11,7 +11,7 @@ import {
   deleteDossierReflection,
   saveDossierPerson,
 } from '@/app/actions/dosier'
-import type { DossierHistoryRecord, DossierPerson, DossierReflection } from '@/lib/db/schema'
+import type { DossierComment, DossierHistoryRecord, DossierPerson, DossierReflection } from '@/lib/db/schema'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -20,6 +20,7 @@ type Props = {
   person: DossierPerson
   history: DossierHistoryRecord[]
   reflections: DossierReflection[]
+  comments: DossierComment[]
 }
 
 const formatDate = (date: Date | string | null) => {
@@ -27,7 +28,10 @@ const formatDate = (date: Date | string | null) => {
   return new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-export function DosierProfile({ person, history, reflections }: Props) {
+const formatTimestamp = (date: Date | string) =>
+  new Date(date).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+
+export function DosierProfile({ person, history, reflections, comments }: Props) {
   const [name, setName] = useState(person.name)
   const [importance, setImportance] = useState(person.importance)
   const [relationshipLevel, setRelationshipLevel] = useState(person.relationshipLevel)
@@ -103,6 +107,31 @@ export function DosierProfile({ person, history, reflections }: Props) {
           <Button type="submit" disabled={pending}>Save details</Button>
         </div>
       </form>
+
+      <section aria-labelledby="comments-heading" className="dross-sheen flex flex-col gap-4 rounded-lg border bg-card p-4 md:p-6">
+        <div>
+          <div className="flex items-center gap-2">
+            <Sparkles className="dross-spin size-4 text-primary" aria-hidden="true" />
+            <h2 id="comments-heading" className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Change comments</h2>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">Every Dosier change is captured with its author and exact time.</p>
+        </div>
+        {comments.length === 0 ? (
+          <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">No changes recorded yet.</p>
+        ) : (
+          <ol className="flex flex-col gap-3">
+            {comments.map((item) => (
+              <li key={item.id} className="flex flex-col gap-2 rounded-md border bg-muted/30 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">{item.actor === 'ai' ? 'AI' : 'You'} · {item.action}</span>
+                  <time dateTime={new Date(item.createdAt).toISOString()}>{formatTimestamp(item.createdAt)}</time>
+                </div>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed">{item.comment}</p>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
 
       <section aria-labelledby="history-heading" className="flex flex-col gap-4 rounded-lg border bg-card p-4 md:p-6">
         <div>
