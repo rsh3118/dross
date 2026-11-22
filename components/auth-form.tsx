@@ -38,10 +38,12 @@ export function AuthForm({
   mode,
   hasOwner,
   initialError,
+  callbackURL = '/',
 }: {
   mode: 'sign-in' | 'sign-up'
   hasOwner: boolean
   initialError?: string | null
+  callbackURL?: string
 }) {
   const router = useRouter()
   const [name, setName] = useState('')
@@ -64,7 +66,7 @@ export function AuthForm({
       if (data?.user) {
         window.clearInterval(timer)
         popupRef.current?.close()
-        router.push('/')
+        router.push(callbackURL)
         router.refresh()
         return
       }
@@ -74,7 +76,7 @@ export function AuthForm({
       }
     }, 1500)
     return () => window.clearInterval(timer)
-  }, [googleState, router])
+  }, [callbackURL, googleState, router])
 
   const handleGoogle = async () => {
     setError(null)
@@ -91,8 +93,8 @@ export function AuthForm({
 
     const { data, error } = await authClient.signIn.social({
       provider: 'google',
-      callbackURL: framed ? '/auth/done' : '/',
-      errorCallbackURL: '/sign-in?error=google',
+      callbackURL: framed ? '/auth/done' : callbackURL,
+      errorCallbackURL: `/sign-in?error=google&callbackUrl=${encodeURIComponent(callbackURL)}`,
       disableRedirect: framed,
     })
 
@@ -129,7 +131,7 @@ export function AuthForm({
       return
     }
 
-    router.push('/')
+    router.push(callbackURL)
     router.refresh()
   }
 
