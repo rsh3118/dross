@@ -518,6 +518,8 @@ export const dossierPeople = pgTable('dossier_people', {
   name: text('name').notNull(),
   importance: text('importance').notNull().default(''),
   relationshipLevel: text('relationship_level').notNull().default(''),
+  importanceScore: integer('importance_score').notNull().default(50),
+  temperatureScore: integer('temperature_score').notNull().default(50),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })

@@ -84,10 +84,10 @@ const tools = [
   { name: 'archive_journal_entry', description: 'Archive a journal entry belonging to the authenticated Dross user.', inputSchema: { type: 'object', required: ['id'], properties: { id: { type: 'integer', minimum: 1 } } } },
   { name: 'delete_dossier_person', description: 'Delete a person in Dosier and their associated history and reflections.', inputSchema: { type: 'object', required: ['personId'], properties: { personId: { type: 'integer', minimum: 1 } } } },
   { name: 'list_dossier_comments', description: 'List timestamped, attributable change comments across the authenticated user’s Dosier.', inputSchema: { type: 'object', properties: { personId: { type: 'integer', minimum: 1 }, limit: { type: 'integer', minimum: 1, maximum: 200 } } } },
-  { name: 'list_dossier_people', description: 'List people in the authenticated user’s Dosier, including relationship importance and level blurbs.', inputSchema: { type: 'object', properties: { limit: { type: 'integer', minimum: 1, maximum: 100 } } } },
+  { name: 'list_dossier_people', description: 'List people in the authenticated user’s Dosier, including importance and temperature scores (ranked by importance, then temperature).', inputSchema: { type: 'object', properties: { limit: { type: 'integer', minimum: 1, maximum: 100 } } } },
   { name: 'get_dossier_person', description: 'Read one person’s Dosier, including relationship blurbs, history records, attributed reflections, and timestamped change comments.', inputSchema: { type: 'object', required: ['personId'], properties: { personId: { type: 'integer', minimum: 1 } } } },
-  { name: 'create_dossier_person', description: 'Add a person to Dosier with optional importance and relationship-level blurbs.', inputSchema: { type: 'object', required: ['name'], properties: { name: { type: 'string', minLength: 1, maxLength: 160 }, importance: { type: 'string', maxLength: 500 }, relationshipLevel: { type: 'string', maxLength: 500 } } } },
-  { name: 'update_dossier_person', description: 'Update a person’s name, relationship importance, or relationship-level blurb.', inputSchema: { type: 'object', required: ['personId'], properties: { personId: { type: 'integer', minimum: 1 }, name: { type: 'string', minLength: 1, maxLength: 160 }, importance: { type: 'string', maxLength: 500 }, relationshipLevel: { type: 'string', maxLength: 500 } }, anyOf: [{ required: ['name'] }, { required: ['importance'] }, { required: ['relationshipLevel'] }] } },
+  { name: 'create_dossier_person', description: 'Add a person to Dosier with optional relationship blurbs and scores from 0 to 100.', inputSchema: { type: 'object', required: ['name'], properties: { name: { type: 'string', minLength: 1, maxLength: 160 }, importance: { type: 'string', maxLength: 500 }, relationshipLevel: { type: 'string', maxLength: 500 }, importanceScore: { type: 'integer', minimum: 0, maximum: 100 }, temperatureScore: { type: 'integer', minimum: 0, maximum: 100 } } } },
+  { name: 'update_dossier_person', description: 'Update a person’s name, relationship blurbs, importance score, or temperature score. Scores must be integers from 0 to 100.', inputSchema: { type: 'object', required: ['personId'], properties: { personId: { type: 'integer', minimum: 1 }, name: { type: 'string', minLength: 1, maxLength: 160 }, importance: { type: 'string', maxLength: 500 }, relationshipLevel: { type: 'string', maxLength: 500 }, importanceScore: { type: 'integer', minimum: 0, maximum: 100 }, temperatureScore: { type: 'integer', minimum: 0, maximum: 100 } }, anyOf: [{ required: ['name'] }, { required: ['importance'] }, { required: ['relationshipLevel'] }, { required: ['importanceScore'] }, { required: ['temperatureScore'] }] } },
   { name: 'create_dossier_history', description: 'Add a dated history record. Records may be manual, journal-derived, or AI-authored; when sourceJournalEntryId is supplied it must refer to the authenticated user’s journal.', inputSchema: { type: 'object', required: ['personId', 'content'], properties: { personId: { type: 'integer', minimum: 1 }, title: { type: 'string', maxLength: 200 }, content: { type: 'string', minLength: 1, maxLength: 12000 }, occurredAt: { type: 'string', format: 'date-time' }, sourceType: { type: 'string', enum: ['manual', 'journal', 'ai'] }, sourceJournalEntryId: { type: 'integer', minimum: 1 } } } },
   { name: 'delete_dossier_history', description: 'Delete a history record belonging to a person in the authenticated user’s Dosier.', inputSchema: { type: 'object', required: ['personId', 'recordId'], properties: { personId: { type: 'integer', minimum: 1 }, recordId: { type: 'integer', minimum: 1 } } } },
   { name: 'create_dossier_reflection', description: 'Add a relationship reflection and attribute it to me or AI. Actor defaults to AI when omitted.', inputSchema: { type: 'object', required: ['personId', 'content'], properties: { personId: { type: 'integer', minimum: 1 }, content: { type: 'string', minLength: 1, maxLength: 12000 }, actor: { type: 'string', enum: ['me', 'ai'] } } } },
@@ -468,8 +468,8 @@ export async function POST(request: Request) {
     }
     value = await db.select().from(dossierPeople)
       .where(eq(dossierPeople.userId, user.id))
-      .orderBy(asc(dossierPeople.name))
-      .limit(limit)
+  .orderBy(desc(dossierPeople.importanceScore), desc(dossierPeople.temperatureScore), asc(dossierPeople.name))
+  .limit(limit)
   } else if (name === 'get_dossier_person') {
     if (!Number.isSafeInteger(args.personId) || args.personId < 1) {
       return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid Dosier person ID' } })
@@ -493,7 +493,7 @@ export async function POST(request: Request) {
       value = { person, history, reflections, comments }
     }
   } else if (name === 'create_dossier_person') {
-    if (typeof args.name !== 'string' || !args.name.trim() || args.name.trim().length > 160 || (args.importance !== undefined && (typeof args.importance !== 'string' || args.importance.trim().length > 500)) || (args.relationshipLevel !== undefined && (typeof args.relationshipLevel !== 'string' || args.relationshipLevel.trim().length > 500))) {
+    if (typeof args.name !== 'string' || !args.name.trim() || args.name.trim().length > 160 || (args.importance !== undefined && (typeof args.importance !== 'string' || args.importance.trim().length > 500)) || (args.relationshipLevel !== undefined && (typeof args.relationshipLevel !== 'string' || args.relationshipLevel.trim().length > 500)) || (args.importanceScore !== undefined && (!Number.isInteger(args.importanceScore) || args.importanceScore < 0 || args.importanceScore > 100)) || (args.temperatureScore !== undefined && (!Number.isInteger(args.temperatureScore) || args.temperatureScore < 0 || args.temperatureScore > 100))) {
       return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid Dosier person fields' } })
     }
     const person = await db.transaction(async (tx) => {
@@ -502,6 +502,8 @@ export async function POST(request: Request) {
         name: args.name.trim(),
         importance: args.importance?.trim() ?? '',
         relationshipLevel: args.relationshipLevel?.trim() ?? '',
+        importanceScore: args.importanceScore ?? 50,
+        temperatureScore: args.temperatureScore ?? 50,
       }).returning()
       await tx.insert(dossierComments).values({
         userId: user.id,
@@ -517,7 +519,7 @@ export async function POST(request: Request) {
     })
     value = person
   } else if (name === 'update_dossier_person') {
-    if (!Number.isSafeInteger(args.personId) || args.personId < 1 || !['name', 'importance', 'relationshipLevel'].some((field) => args[field] !== undefined) || (args.name !== undefined && (typeof args.name !== 'string' || !args.name.trim() || args.name.trim().length > 160)) || (args.importance !== undefined && (typeof args.importance !== 'string' || args.importance.trim().length > 500)) || (args.relationshipLevel !== undefined && (typeof args.relationshipLevel !== 'string' || args.relationshipLevel.trim().length > 500))) {
+    if (!Number.isSafeInteger(args.personId) || args.personId < 1 || !['name', 'importance', 'relationshipLevel', 'importanceScore', 'temperatureScore'].some((field) => args[field] !== undefined) || (args.importanceScore !== undefined && (!Number.isInteger(args.importanceScore) || args.importanceScore < 0 || args.importanceScore > 100)) || (args.temperatureScore !== undefined && (!Number.isInteger(args.temperatureScore) || args.temperatureScore < 0 || args.temperatureScore > 100)) || (args.name !== undefined && (typeof args.name !== 'string' || !args.name.trim() || args.name.trim().length > 160)) || (args.importance !== undefined && (typeof args.importance !== 'string' || args.importance.trim().length > 500)) || (args.relationshipLevel !== undefined && (typeof args.relationshipLevel !== 'string' || args.relationshipLevel.trim().length > 500))) {
       return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid Dosier person fields' } })
     }
     const person = await db.transaction(async (tx) => {
@@ -528,11 +530,15 @@ export async function POST(request: Request) {
         name: args.name?.trim() ?? current.name,
         importance: args.importance?.trim() ?? current.importance,
         relationshipLevel: args.relationshipLevel?.trim() ?? current.relationshipLevel,
+        importanceScore: args.importanceScore ?? current.importanceScore,
+        temperatureScore: args.temperatureScore ?? current.temperatureScore,
       }
       const changes = [
         ...(current.name !== next.name ? [`name: “${current.name}” → “${next.name}”`] : []),
         ...(current.importance !== next.importance ? [`importance: “${current.importance}” → “${next.importance}”`] : []),
         ...(current.relationshipLevel !== next.relationshipLevel ? [`relationship level: “${current.relationshipLevel}” → “${next.relationshipLevel}”`] : []),
+        ...(current.importanceScore !== next.importanceScore ? [`importance score: ${current.importanceScore} → ${next.importanceScore}`] : []),
+        ...(current.temperatureScore !== next.temperatureScore ? [`temperature score: ${current.temperatureScore} → ${next.temperatureScore}`] : []),
       ]
       if (changes.length === 0) return current
       const [updated] = await tx.update(dossierPeople).set({ ...next, updatedAt: new Date() })
