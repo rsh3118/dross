@@ -41,12 +41,17 @@ import { defaultDueAt, habitOnComplete, habitOnUncomplete, isHabit, periodKeyFor
 
 const interactionRecordSchema = {
   type: 'object',
-  required: ['person', 'interaction', 'feelings'],
+  required: ['person'],
   properties: {
     person: { type: 'string', maxLength: 500 },
-    interaction: { type: 'string', maxLength: 500 },
-    feelings: { type: 'string', maxLength: 500 },
+    personId: { type: 'integer', minimum: 1, description: 'Optional dossier_people.id for this person.' },
+    whatHappened: { type: 'string', maxLength: 500 },
+    howItWent: { type: 'string', maxLength: 500 },
+    followUp: { type: 'string', maxLength: 2000 },
+    interaction: { type: 'string', maxLength: 500, description: 'Legacy alias for whatHappened.' },
+    feelings: { type: 'string', maxLength: 500, description: 'Legacy alias for howItWent.' },
   },
+  anyOf: [{ required: ['whatHappened', 'howItWent'] }, { required: ['interaction', 'feelings'] }],
 }
 const timeSpentRecordSchema = {
   type: 'object',
@@ -173,12 +178,24 @@ const mcpTaskInput = z.object({
 })
 
 const journalListSchema = z.array(z.string().trim().max(500)).max(200)
+const journalInteractionSchema = z.object({
+  person: z.string().trim().min(1).max(500),
+  personId: z.number().int().positive().optional(),
+  whatHappened: z.string().trim().max(500).optional(),
+  howItWent: z.string().trim().max(500).optional(),
+  followUp: z.string().trim().max(2000).optional(),
+  interaction: z.string().trim().max(500).optional(),
+  feelings: z.string().trim().max(500).optional(),
+}).refine((record) => Boolean(record.whatHappened && record.howItWent) || Boolean(record.interaction && record.feelings), {
+  message: 'Provide whatHappened and howItWent (or legacy interaction and feelings).',
+})
+
 const journalTrackingPatchSchema = {
-  interactions: z.array(z.object({
-    person: z.string().trim().max(500),
-    interaction: z.string().trim().max(500),
-    feelings: z.string().trim().max(500),
-  })).max(200).optional(),
+  interactions: z.array(journalInteractionSchema.transform((record) => ({
+    ...record,
+    interaction: record.interaction ?? record.whatHappened ?? '',
+    feelings: record.feelings ?? record.howItWent ?? '',
+  }))).max(200).optional(),
   timeSpent: z.array(z.object({
     activity: z.string().trim().max(500),
     duration: z.string().trim().max(80).optional(),
@@ -211,10 +228,14 @@ const dailyJournalPatchSchema = z.object({
   details: z.string().trim().max(8000).optional(),
   }).strip()
 
-function parseJournalBody(type: JournalType, value: unknown): JournalBody | null {
+function parseJournalBody(type: JournalType, value: unknown): { body: JournalBody | null; error?: string } {
   const parsed = type === 'daily' ? dailyJournalPatchSchema.safeParse(value) : relationshipJournalPatchSchema.safeParse(value)
-  if (!parsed.success) return null
-  return { ...emptyBodyFor(type), ...parsed.data } as JournalBody
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]
+    const path = issue.path.length ? issue.path.join('.') : 'body'
+    return { body: null, error: `Invalid journal body at ${path}: ${issue.message}` }
+  }
+  return { body: { ...emptyBodyFor(type), ...parsed.data } as JournalBody }
 }
 
 export async function OPTIONS() {
@@ -427,9 +448,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid journal entry fields' } })
     }
     const type = args.type as JournalType
-    const entryBody = args.body === undefined ? emptyBodyFor(type) : parseJournalBody(type, args.body)
-    if (!entryBody) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid journal body for entry type' } })
-    const [entry] = await db.insert(journalEntries).values({ userId: user.id, type, title: args.title?.trim() || null, summary: args.summary?.trim() || null, body: entryBody, ...(entryDate ? { entryDate } : {}) }).returning()
+    const parsedBody = args.body === undefined ? { body: emptyBodyFor(type) } : parseJournalBody(type, args.body)
+    if (!parsedBody.body) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: parsedBody.error ?? 'Invalid journal body' } })
+    const [entry] = await db.insert(journalEntries).values({ userId: user.id, type, title: args.title?.trim() || null, summary: args.summary?.trim() || null, body: parsedBody.body, ...(entryDate ? { entryDate } : {}) }).returning()
     value = entry
   } else if (name === 'update_journal_entry') {
     const entryDate = args.entryDate === undefined ? undefined : typeof args.entryDate === 'string' ? new Date(args.entryDate) : null
@@ -439,9 +460,9 @@ export async function POST(request: Request) {
     const [current] = await db.select().from(journalEntries).where(and(eq(journalEntries.id, args.id), eq(journalEntries.userId, user.id), isNull(journalEntries.archivedAt))).limit(1)
     if (!current) value = { error: 'Journal entry not found' }
     else {
-      const updatedBody = args.body === undefined ? current.body : parseJournalBody(current.type, { ...current.body, ...args.body })
-      if (!updatedBody) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid journal body for entry type' } })
-      const [entry] = await db.update(journalEntries).set({ ...(args.title !== undefined ? { title: args.title?.trim() || null } : {}), ...(args.summary !== undefined ? { summary: args.summary?.trim() || null } : {}), ...(args.body !== undefined ? { body: updatedBody } : {}), ...(entryDate ? { entryDate } : {}), updatedAt: new Date() }).where(and(eq(journalEntries.id, args.id), eq(journalEntries.userId, user.id), isNull(journalEntries.archivedAt))).returning()
+      const parsedBody = args.body === undefined ? { body: current.body } : parseJournalBody(current.type, { ...current.body, ...args.body })
+      if (!parsedBody.body) return NextResponse.json({ jsonrpc: '2.0', id: body.id, error: { code: -32602, message: parsedBody.error ?? 'Invalid journal body' } })
+      const [entry] = await db.update(journalEntries).set({ ...(args.title !== undefined ? { title: args.title?.trim() || null } : {}), ...(args.summary !== undefined ? { summary: args.summary?.trim() || null } : {}), ...(args.body !== undefined ? { body: parsedBody.body } : {}), ...(entryDate ? { entryDate } : {}), updatedAt: new Date() }).where(and(eq(journalEntries.id, args.id), eq(journalEntries.userId, user.id), isNull(journalEntries.archivedAt))).returning()
       value = entry ?? { error: 'Journal entry not found' }
     }
   } else if (name === 'archive_journal_entry') {
