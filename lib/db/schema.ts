@@ -455,6 +455,10 @@ export type JournalInteraction = {
   person: string
   interaction: string
   feelings: string
+  personId?: number
+  whatHappened?: string
+  howItWent?: string
+  followUp?: string
 }
 
 export type JournalTimeSpent = {
