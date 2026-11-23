@@ -21,7 +21,7 @@ export function DosierDirectory({ people }: { people: DossierPerson[] }) {
     if (!trimmedName) return
     startTransition(async () => {
       try {
-        const person = await createDossierPerson({ name: trimmedName, importance: '', relationshipLevel: '' })
+        const person = await createDossierPerson({ name: trimmedName, importance: '', relationshipLevel: '', importanceScore: 50, temperatureScore: 50 })
         setName('')
         toast('Person added')
         router.push(`/dosier/${person.id}`)
@@ -57,15 +57,27 @@ export function DosierDirectory({ people }: { people: DossierPerson[] }) {
         </div>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {people.map((person) => (
+          {people.map((person) => {
+            const temperatureTone = person.temperatureScore >= 67 ? 'warm' : person.temperatureScore <= 33 ? 'cool' : 'steady'
+            return (
             <li key={person.id}>
               <Link
                 href={`/dosier/${person.id}`}
-                className="group flex h-full flex-col gap-4 rounded-lg border bg-card p-4 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className={`dossier-temperature dossier-temperature-${temperatureTone} group dross-glow flex h-full flex-col gap-4 rounded-lg border bg-card p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
               >
                 <span className="flex items-center justify-between gap-3">
                   <span className="min-w-0 truncate text-base font-semibold">{person.name}</span>
                   <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                </span>
+                <span className="grid grid-cols-2 gap-2">
+                  <span className="rounded-md border border-border/70 bg-background/40 px-3 py-2">
+                    <span className="block font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Importance</span>
+                    <span className="mt-1 block font-mono text-lg font-semibold tabular-nums">{person.importanceScore}<span className="text-xs text-muted-foreground"> / 100</span></span>
+                  </span>
+                  <span className="dossier-temperature-score rounded-md border px-3 py-2">
+                    <span className="block font-mono text-[10px] uppercase tracking-widest">Temperature</span>
+                    <span className="mt-1 block font-mono text-lg font-semibold tabular-nums">{person.temperatureScore}<span className="text-xs opacity-70"> / 100</span></span>
+                  </span>
                 </span>
                 <span className="flex flex-col gap-3 text-sm leading-relaxed">
                   <span>
@@ -79,7 +91,8 @@ export function DosierDirectory({ people }: { people: DossierPerson[] }) {
                 </span>
               </Link>
             </li>
-          ))}
+            )
+          })}
         </ul>
       )}
     </div>

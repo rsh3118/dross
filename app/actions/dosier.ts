@@ -18,6 +18,8 @@ const personFields = z.object({
   name: z.string().trim().min(1).max(160),
   importance: z.string().trim().max(500),
   relationshipLevel: z.string().trim().max(500),
+  importanceScore: z.number().int().min(0).max(100),
+  temperatureScore: z.number().int().min(0).max(100),
 })
 
 function revalidateDossier(personId?: number) {
@@ -27,7 +29,8 @@ function revalidateDossier(personId?: number) {
 
 export async function listDossierPeople() {
   const userId = await getUserId()
-  return db.select().from(dossierPeople).where(eq(dossierPeople.userId, userId)).orderBy(asc(dossierPeople.name))
+  return db.select().from(dossierPeople).where(eq(dossierPeople.userId, userId))
+    .orderBy(desc(dossierPeople.importanceScore), desc(dossierPeople.temperatureScore), asc(dossierPeople.name))
 }
 
 export async function getDossierPerson(id: number) {
@@ -90,6 +93,8 @@ export async function saveDossierPerson(id: number, raw: z.input<typeof personFi
       ...(current.name !== data.name ? [`name: “${current.name}” → “${data.name}”`] : []),
       ...(current.importance !== data.importance ? [`importance: “${current.importance}” → “${data.importance}”`] : []),
       ...(current.relationshipLevel !== data.relationshipLevel ? [`relationship level: “${current.relationshipLevel}” → “${data.relationshipLevel}”`] : []),
+      ...(current.importanceScore !== data.importanceScore ? [`importance score: ${current.importanceScore} → ${data.importanceScore}`] : []),
+      ...(current.temperatureScore !== data.temperatureScore ? [`temperature score: ${current.temperatureScore} → ${data.temperatureScore}`] : []),
     ]
     if (changes.length === 0) return current
 

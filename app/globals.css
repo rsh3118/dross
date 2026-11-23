@@ -158,6 +158,44 @@
   transform: translateY(-1px);
 }
 
+.dossier-temperature {
+  transition: border-color 240ms ease, box-shadow 240ms ease, background-color 240ms ease;
+}
+
+.dossier-temperature-warm {
+  --dossier-temperature-color: var(--success);
+  border-color: color-mix(in oklch, var(--success) 36%, var(--border));
+  background-image: linear-gradient(135deg, color-mix(in oklch, var(--success) 9%, var(--card)), var(--card) 58%);
+}
+
+.dossier-temperature-steady {
+  --dossier-temperature-color: var(--warning);
+  border-color: color-mix(in oklch, var(--warning) 30%, var(--border));
+  background-image: linear-gradient(135deg, color-mix(in oklch, var(--warning) 7%, var(--card)), var(--card) 58%);
+}
+
+.dossier-temperature-cool {
+  --dossier-temperature-color: var(--destructive);
+  border-color: color-mix(in oklch, var(--destructive) 34%, var(--border));
+  background-image: linear-gradient(135deg, color-mix(in oklch, var(--destructive) 8%, var(--card)), var(--card) 58%);
+}
+
+.dossier-temperature-score {
+  color: var(--dossier-temperature-color);
+  border-color: color-mix(in oklch, var(--dossier-temperature-color) 38%, var(--border));
+  background: color-mix(in oklch, var(--dossier-temperature-color) 9%, var(--background));
+  box-shadow: inset 0 1px color-mix(in oklch, var(--dossier-temperature-color) 17%, transparent), 0 0 15px color-mix(in oklch, var(--dossier-temperature-color) 9%, transparent);
+}
+
+.dossier-score-range {
+  width: 100%;
+  accent-color: var(--primary);
+}
+
+.dossier-temperature-range {
+  accent-color: var(--dossier-temperature-color, var(--success));
+}
+
 :focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 3px;

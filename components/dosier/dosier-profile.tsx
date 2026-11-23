@@ -35,6 +35,8 @@ export function DosierProfile({ person, history, reflections, comments }: Props)
   const [name, setName] = useState(person.name)
   const [importance, setImportance] = useState(person.importance)
   const [relationshipLevel, setRelationshipLevel] = useState(person.relationshipLevel)
+  const [importanceScore, setImportanceScore] = useState(person.importanceScore)
+  const [temperatureScore, setTemperatureScore] = useState(person.temperatureScore)
   const [historyTitle, setHistoryTitle] = useState('')
   const [historyContent, setHistoryContent] = useState('')
   const [occurredOn, setOccurredOn] = useState('')
@@ -46,7 +48,7 @@ export function DosierProfile({ person, history, reflections, comments }: Props)
     event.preventDefault()
     startTransition(async () => {
       try {
-        await saveDossierPerson(person.id, { name, importance, relationshipLevel })
+        await saveDossierPerson(person.id, { name, importance, relationshipLevel, importanceScore, temperatureScore })
         toast('Dosier updated')
       } catch {
         toast.error('Could not save Dosier')
@@ -102,6 +104,23 @@ export function DosierProfile({ person, history, reflections, comments }: Props)
             <label htmlFor="relationship-level" className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">Relationship level</label>
             <Textarea id="relationship-level" value={relationshipLevel} onChange={(event) => setRelationshipLevel(event.target.value)} maxLength={500} placeholder="How would you describe where things stand?" />
           </div>
+        </div>
+        <div className="grid gap-5 rounded-md border bg-muted/20 p-4 md:grid-cols-2">
+          <label htmlFor="importance-score" className="flex flex-col gap-2 text-sm">
+            <span className="flex items-center justify-between gap-3">
+              <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">Importance score</span>
+              <span className="font-mono tabular-nums">{importanceScore}<span className="text-muted-foreground">/100</span></span>
+            </span>
+            <input id="importance-score" type="range" min="0" max="100" step="1" value={importanceScore} onChange={(event) => setImportanceScore(Number(event.target.value))} className="dossier-score-range" />
+          </label>
+          <label htmlFor="temperature-score" className="flex flex-col gap-2 text-sm">
+            <span className="flex items-center justify-between gap-3">
+              <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">Temperature · relationship health</span>
+              <span className="font-mono tabular-nums">{temperatureScore}<span className="text-muted-foreground">/100</span></span>
+            </span>
+            <input id="temperature-score" type="range" min="0" max="100" step="1" value={temperatureScore} onChange={(event) => setTemperatureScore(Number(event.target.value))} className="dossier-score-range dossier-temperature-range" style={{ accentColor: temperatureScore >= 67 ? 'var(--success)' : temperatureScore <= 33 ? 'var(--destructive)' : 'var(--warning)' }} />
+            <span className="flex justify-between text-xs text-muted-foreground"><span>Cool · needs care</span><span>Warm · thriving</span></span>
+          </label>
         </div>
         <div className="flex justify-end">
           <Button type="submit" disabled={pending}>Save details</Button>
